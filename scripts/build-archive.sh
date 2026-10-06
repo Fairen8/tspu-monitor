@@ -14,6 +14,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$OUTDIR"
+OUTDIR="$(cd "$OUTDIR" && pwd)"
 
 python3 -m pip install --quiet --no-cache-dir --target "$STAGE" "$ROOT"
 
