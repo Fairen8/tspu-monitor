@@ -160,52 +160,17 @@ Telegram**; сетевые пробы всегда идут напрямую. В
 ## Документация
 
 * **[DOCS.md](DOCS.md)** — архитектура, модель диагноза, все пробы и
-  сценарии, CLI, конфигурация, отчёты, автоматизация, разработка,
-  устранение неполадок.
-* [deploy/lxc/README.md](deploy/lxc/README.md) — LXC/Proxmox.
+  сценарии, CLI, конфигурация, отчёты, автоматизация, устранение
+  неполадок.
+* [deploy/lxc/README.md](deploy/lxc/README.md) — установка в LXC/Proxmox.
 * [deploy/zapret/README.md](deploy/zapret/README.md) — Telegram за блокировкой.
-* [.github/REPO_SETUP.md](.github/REPO_SETUP.md) — защита репозитория и релизы.
 * [CHANGELOG.md](CHANGELOG.md) — история изменений.
-* [SECURITY.md](SECURITY.md) — политика безопасности.
-* [CONTRIBUTING.md](CONTRIBUTING.md) — правила разработки.
 
-## Релизы
+## Сообщество
 
-Две защищённые ветки:
-
-* `main` — разработка (изменения только через PR);
-* `release` — стабильные релизы: **только PR из `main`**, прямые коммиты
-  и force-push запрещены (обязательная проверка `Source is main`).
-
-Подготовка релиза одной командой:
-
-```bash
-bash scripts/release.sh 2.1.0
-```
-
-Скрипт обновит версию, прогонит тесты, запушит `main` и откроет PR
-`main → release`. После мержа workflow **Publish release** автоматически
-создаст тег `vX.Y.Z`, GitHub Release (`wheel`/`sdist`/`SHA256SUMS`) и
-Docker-образ `ghcr.io/fairen8/tspu-monitor`. Подробности — в
-[DOCS.md](DOCS.md#16-релизы-и-версионирование) и
-[.github/REPO_SETUP.md](.github/REPO_SETUP.md).
-
-## Сообщество и участие
-
-* [CONTRIBUTING.md](CONTRIBUTING.md) — как разрабатывать и присылать PR.
+* [CONTRIBUTING.md](CONTRIBUTING.md) — как участвовать в разработке.
 * [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — кодекс поведения.
-* [SECURITY.md](SECURITY.md) — приватное сообщение об уязвимостях.
-* [.github/REPO_SETUP.md](.github/REPO_SETUP.md) — защита репозитория,
-  обязательные проверки и релизный процесс.
-
-## Разработка
-
-```bash
-pip install -e ".[dev]"
-ruff check src tests
-pytest -q                    # быстрые тесты
-pytest -q -m integration     # пробы на локальных мок-серверах
-```
+* [SECURITY.md](SECURITY.md) — как приватно сообщить об уязвимости.
 
 ## Лицензия
 
