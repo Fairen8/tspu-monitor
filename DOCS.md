@@ -965,18 +965,19 @@ curl -s localhost:8787/metrics
 
 ## 17. Анонимная статистика
 
-Добровольная отправка обезличенных метрик. **По умолчанию выключена.**
+Обезличенные метрики. **Включена по умолчанию**, отключается одной
+командой.
 
 ```bash
-tspu-monitor telemetry enable     # включить
-tspu-monitor telemetry status     # состояние и client_id
 tspu-monitor telemetry disable    # выключить
+tspu-monitor telemetry status     # состояние и client_id
+tspu-monitor telemetry enable     # снова включить
 tspu-monitor telemetry test       # ручная проверка приёмника
 ```
 
-Установщики: `install.sh --with-telemetry`, `install.ps1 -WithTelemetry`.
-Приёмник по умолчанию — `https://statistics.fairen8.ru/api/v1/events`
-(меняется через `telemetry.url`).
+Установщики: отключить при установке — `install.sh --no-telemetry`,
+`install.ps1 -NoTelemetry`. Приёмник по умолчанию —
+`https://statistics.fairen8.ru/api/v1/events` (меняется `telemetry.url`).
 
 ### 17.1. Что отправляется
 

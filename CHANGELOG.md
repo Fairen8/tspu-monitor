@@ -12,9 +12,9 @@
 * Релизы: заметки содержат таблицу «Артефакты и платформы» с указанием ОС
   для каждого файла; Windows явно помечен как неподдерживаемый для
   shell-скриптов и сетевых проб (`scripts/release_platforms.md`).
-* Добровольная анонимная статистика (`telemetry.enabled`, по умолчанию
-  выключена): команда `tspu-monitor telemetry status|enable|disable|test`,
-  флаги установщиков `--with-telemetry`/`-WithTelemetry`. Отправляются
+* Анонимная статистика (`telemetry.enabled`, включена по умолчанию,
+  отключается командой `tspu-monitor telemetry disable` или флагами
+  установщиков `--no-telemetry`/`-NoTelemetry`). Отправляются
   только обезличенные метрики; сбои игнорируются молча.
 * Универсальный установщик `install.sh` одной командой: автоопределение
   дистрибутива (Debian/Ubuntu, RHEL/Fedora, Alpine, Arch, openSUSE, macOS),

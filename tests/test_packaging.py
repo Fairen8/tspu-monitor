@@ -94,7 +94,14 @@ def test_installers_present():
         assert (ROOT / name).exists(), f"нет установщика {name}"
 
     script = (ROOT / "install.sh").read_text(encoding="utf-8")
-    for flag in ("--version", "--prefix", "--no-service", "--with-web", "--uninstall"):
+    for flag in (
+        "--version",
+        "--prefix",
+        "--no-service",
+        "--with-web",
+        "--no-telemetry",
+        "--uninstall",
+    ):
         assert flag in script
     for distro in ("apt-get", "dnf", "apk", "pacman", "zypper", "brew"):
         assert distro in script

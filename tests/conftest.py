@@ -23,6 +23,11 @@ def make_config(
     config_dir.mkdir(parents=True, exist_ok=True)
 
     merged_settings = deep_merge(DEFAULT_SETTINGS, settings or {})
+    # Тесты по умолчанию не должны ходить в сеть: гасим телеметрию,
+    # если тест не включил её явно.
+    explicit_telemetry = (settings or {}).get("telemetry", {})
+    if "enabled" not in explicit_telemetry:
+        merged_settings.setdefault("telemetry", {})["enabled"] = False
     merged_settings.setdefault("general", {})
     merged_settings["general"]["data_dir"] = str(tmp_path / "data")
     merged_settings["general"]["reports_dir"] = str(tmp_path / "reports")

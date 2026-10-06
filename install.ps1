@@ -20,6 +20,7 @@ param(
     [string]$Repo = 'Fairen8/tspu-monitor',
     [switch]$WithWeb,
     [switch]$WithTelemetry,
+    [switch]$NoTelemetry,
     [int]$WebPort = 8787,
     [switch]$Uninstall
 )
@@ -136,25 +137,30 @@ settings_path.write_text(
     Remove-Item -Force $webScript
 }
 
-if ($WithTelemetry) {
-    $telScript = Join-Path $env:TEMP ("tspu-tel-" + [guid]::NewGuid().ToString('N') + '.py')
-    @'
+$telemetryEnabled = -not $NoTelemetry
+$telScript = Join-Path $env:TEMP ("tspu-tel-" + [guid]::NewGuid().ToString('N') + '.py')
+@'
 import sys
 from pathlib import Path
 
 import yaml
 
+enabled = sys.argv[3] == "1"
 settings_path = Path(sys.argv[1]) / "settings.yaml"
 settings = yaml.safe_load(settings_path.read_text(encoding="utf-8")) or {}
 settings.setdefault("telemetry", {})
-settings["telemetry"]["enabled"] = True
+settings["telemetry"]["enabled"] = enabled
 settings_path.write_text(
     yaml.safe_dump(settings, allow_unicode=True, sort_keys=False), encoding="utf-8"
 )
 '@ | Set-Content -Encoding UTF8 -Path $telScript
-    & $venvPython $telScript $ConfigDir
-    Remove-Item -Force $telScript
+if ($telemetryEnabled) { $telFlag = '1' } else { $telFlag = '0' }
+& $venvPython $telScript $ConfigDir $telFlag
+Remove-Item -Force $telScript
+if ($telemetryEnabled) {
     Ok 'Анонимная статистика включена (выключить: tspu-monitor telemetry disable)'
+} else {
+    Warn 'Анонимная статистика отключена (-NoTelemetry)'
 }
 
 $cmd = Join-Path $BinDir 'tspu-monitor.cmd'

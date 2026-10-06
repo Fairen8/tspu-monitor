@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import os
 from pathlib import Path
@@ -73,7 +74,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "refresh_seconds": 30,
     },
     "telemetry": {
-        "enabled": False,
+        "enabled": True,
         "url": "https://statistics.fairen8.ru/api/v1/events",
         "timeout_seconds": 3,
     },
@@ -163,13 +164,17 @@ def save_yaml(path: os.PathLike | str, data: dict[str, Any]) -> None:
 
 
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
-    """Рекурсивно слить ``override`` поверх ``base`` (без мутации base)."""
-    result: dict[str, Any] = dict(base)
+    """Рекурсивно слить ``override`` поверх ``base`` (без мутации base).
+
+    База копируется глубоко: вложенные словари не разделяются с исходным
+    объектом, поэтому результат можно безопасно изменять.
+    """
+    result: dict[str, Any] = copy.deepcopy(base)
     for key, value in (override or {}).items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
             result[key] = deep_merge(result[key], value)
         else:
-            result[key] = value
+            result[key] = copy.deepcopy(value)
     return result
 
 

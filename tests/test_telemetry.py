@@ -112,6 +112,12 @@ async def test_disabled_does_not_send(tmp_path, ingest):
     assert received == []
 
 
+def test_telemetry_enabled_by_default():
+    from tspu_monitor.config import DEFAULT_SETTINGS
+
+    assert DEFAULT_SETTINGS["telemetry"]["enabled"] is True
+
+
 async def test_enabled_sends_install_and_run(tmp_path, ingest):
     client, received = ingest
     telemetry = make_telemetry(tmp_path, url=str(client.make_url("/api/v1/events")))
