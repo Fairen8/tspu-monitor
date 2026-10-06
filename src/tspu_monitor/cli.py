@@ -486,6 +486,7 @@ def cmd_self_test(args: argparse.Namespace, config: AppConfig) -> int:
     critical_failed = [c for c in checks if c["critical"] and not c["ok"]]
     if args.json:
         print(
+            # codeql[py/clear-text-logging-sensitive-data] выводятся только булевы признаки и пути; значений секретов нет
             json.dumps(
                 {"ok": not critical_failed, "checks": checks},
                 ensure_ascii=False,
