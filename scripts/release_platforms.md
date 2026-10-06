@@ -4,7 +4,7 @@
 |---|---|---|
 | `tspu-monitor_X.Y.Z_all.deb` | Debian / Ubuntu | `sudo apt install ./tspu-monitor_X.Y.Z_all.deb` |
 | `install.sh` | Linux / macOS | установщик одной командой; **в Windows НЕ работает** |
-| `install.ps1` | Windows | CLI, конфигурация, отчёты, дашборд (без сетевых проб) |
+| `install.ps1` | Windows | CLI, конфигурация, отчёты, дашборд (без сетевых проб); сам ставит Python 3.11+ |
 | `tspu-monitor-X.Y.Z.pyz` | Linux / macOS | переносимый, нужен Python 3.11+ |
 | `tspu_monitor-X.Y.Z-py3-none-any.whl` | Linux / macOS | `pip install`; в Windows — только CLI/дашборд |
 | `tspu_monitor-X.Y.Z.tar.gz` | Linux / macOS | исходники |

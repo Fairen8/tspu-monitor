@@ -151,8 +151,18 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Установка
+      - name: Установка (файлом)
         shell: powershell
         run: |
           .\install.ps1 -Prefix "$env:RUNNER_TEMP\tspu" -Version main
           & "$env:RUNNER_TEMP\tspu\bin\tspu-monitor.cmd" version
+
+      - name: Установка (irm | iex)
+        shell: powershell
+        env:
+          TSPU_PREFIX: ${{ runner.temp }}\tspu-iex
+          TSPU_SRC: ${{ github.workspace }}
+          TSPU_NO_TELEMETRY: "1"
+        run: |
+          iex (Get-Content -Raw .\install.ps1)
+          & "$env:TSPU_PREFIX\bin\tspu-monitor.cmd" version

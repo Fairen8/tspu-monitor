@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-10-06
+
 ### Changed
 
 * Защита веток: `main` — обязательный PR и CI-проверки, прямой push только
@@ -34,6 +36,15 @@
 * Установщик `install.ps1` для Windows (CLI, конфигурация, дашборд).
 * CI: shellcheck и bash-синтаксис, смоук-тесты установки на чистом
   Debian 12 и Windows; установщики прикладываются к релизу.
+
+### Fixed
+
+* Windows-установщик: авто-установка Python 3.11+ (winget, при
+  необходимости — установщик python.org), безопасные ошибки в режиме
+  `irm | iex` (терминал не закрывается), поддержка переменных окружения
+  `TSPU_PREFIX`, `TSPU_VERSION`, `TSPU_REPO`, `TSPU_SRC`,
+  `TSPU_WITH_WEB`, `TSPU_NO_TELEMETRY`, `TSPU_UNINSTALL`.
+* CI: смоук-тест `install.ps1` в режиме `irm | iex`.
 
 ## [2.1.0] - 2026-10-06
 
@@ -116,6 +127,7 @@
 * Webhook-авторизация через Bearer-токен.
 * Whitelist Telegram-пользователей и логирование неавторизованных попыток.
 
-[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.1
 [2.1.0]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.0
 [2.0.0]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.0.0

@@ -90,6 +90,11 @@ curl -fsSL .../install.sh | sudo bash -s -- --uninstall
 irm https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.ps1 | iex
 ```
 
+Установщик сам поставит Python 3.11+ (winget, при необходимости —
+установщик python.org). В режиме `irm | iex` параметры задаются переменными
+окружения: `TSPU_PREFIX`, `TSPU_VERSION`, `TSPU_WITH_WEB=1`,
+`TSPU_NO_TELEMETRY=1`, `TSPU_UNINSTALL=1`.
+
 > **Windows:** shell-скрипты (`install.sh`, `deploy/*`) и сетевые пробы
 > **не работают** — нужны Linux-утилиты (`ping -M`, `traceroute`, `nmap`,
 > `dig`) и `CAP_NET_RAW`. `install.ps1` даёт только CLI, конфигурацию,
