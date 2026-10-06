@@ -3,8 +3,9 @@
 # Настройка защиты репозитория TSPU Monitor (идемпотентно).
 #
 # Итоговая схема:
-#   main    — прямые пуши участников с правом записи; обязательный PR не
-#             требуется; force-push и удаление запрещены; внешние — через PR;
+#   main    — обязательный PR и CI-проверки; прямой push — только у
+#             администраторов (enforce_admins=false); force-push и удаление
+#             запрещены; write/maintain-участники — только через PR;
 #   release — ruleset: только PR (merge-commit), обязательная проверка
 #             «Source is main» и CI-checks, обязательное ревью Copilot
 #             (review_on_push=false, черновики не ревьюятся), запрет
@@ -56,13 +57,28 @@ gh api -X PATCH "repos/${OWNER}/${NAME}" --input - >/dev/null <<'JSON' || \
 }
 JSON
 
-info "3/6 Настраиваю main: прямые пуши участников, без обязательного PR"
+info "3/6 Настраиваю main: PR обязателен, прямой push — только админам"
 gh api -X PUT "repos/${OWNER}/${NAME}/branches/main/protection" --input - >/dev/null <<'JSON' || \
     warn "Не удалось настроить защиту main"
 {
-  "required_status_checks": null,
+  "required_status_checks": {
+    "strict": false,
+    "contexts": [
+      "Lint",
+      "Tests 3.11",
+      "Tests 3.12",
+      "Tests 3.13",
+      "Docker build",
+      "Secret scan",
+      "Анализ Python"
+    ]
+  },
   "enforce_admins": false,
-  "required_pull_request_reviews": null,
+  "required_pull_request_reviews": {
+    "dismiss_stale_reviews": false,
+    "require_code_owner_reviews": false,
+    "required_approving_review_count": 0
+  },
   "restrictions": null,
   "allow_force_pushes": false,
   "allow_deletions": false

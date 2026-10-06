@@ -128,6 +128,7 @@ def test_copilot_review_setup():
     assert "copilot_code_review" in script
     assert "review_on_push" in script
     assert "rules/branches" not in script
-    # защита main без обязательного PR (прямые пуши участников)
+    # main: PR обязателен, прямой push — только администраторам
     assert "branches/main/protection" in script
-    assert '"required_pull_request_reviews": null' in script
+    assert '"enforce_admins": false' in script
+    assert '"required_approving_review_count": 0' in script

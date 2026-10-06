@@ -3,8 +3,8 @@
 Схема веток, защита `release`, сканеры и релизы. Автонастройка —
 [`scripts/protect-repo.sh`](../scripts/protect-repo.sh) (идемпотентна).
 
-> **Статус (2026-10-06):** `main` — защита без обязательного PR (прямые
-> пуши участников, force-push/удаление запрещены); `release` — ruleset
+> **Статус (2026-10-06):** `main` — обязательный PR и CI-проверки, прямой
+> push только у администраторов; `release` — ruleset
 > «Release branch: PR from main + Copilot review»; теги `v*` защищены;
 > secret scanning, push protection и Dependabot включены; CI/CodeQL/Scorecard
 > зелёные.
@@ -13,13 +13,14 @@
 
 | Ветка | Назначение | Правила |
 |---|---|---|
-| `main` | разработка | прямые пуши участников с правом записи; обязательный PR не требуется; force-push и удаление запрещены; внешние (без прав) — только через PR (fork) |
+| `main` | разработка | обязательный PR + CI-проверки; прямой push — только администраторам (`enforce_admins=false`); write/maintain-участники и внешние — только через PR; force-push и удаление запрещены |
 | `release` | релизы | ruleset: только PR (merge-commit), **только из `main`**, обязательно ревью Copilot |
 
-Классическая защита `main` (без обязательного PR) означает: участники
-команды с ролью write/maintain/admin пушат напрямую, а все остальные
-физически не могут пушить и обязаны идти через pull request; CI при этом
-запускается на каждый push и виден в Actions.
+Как это работает: у `main` включено «Require a pull request before merging»
+(0 обязательных approve) и обязательные проверки, но `enforce_admins=false` —
+администраторы могут пушить напрямую в обход. Остальные участники с правом
+записи обязаны идти через PR; внешние (без прав) физически не могут пушить
+и тоже используют PR (fork).
 
 ## 2. Защита `release` (ruleset)
 
@@ -59,7 +60,7 @@ bash scripts/protect-repo.sh Fairen8/tspu-monitor
 ```
 
 Скрипт: Dependabot alerts → secret scanning/push protection → ставит
-защиту `main` (прямые пуши участников, без обязательного PR) → снимает
+защиту `main` (PR обязателен, прямой push — администраторам) → снимает
 классическую защиту `release` → создаёт/обновляет ruleset release
 (с Copilot-ревью) → удаляет авто-Copilot ruleset для main → создаёт
 ruleset тегов `v*`.
@@ -104,8 +105,8 @@ SHA256SUMS) и мультиархитектурный образ. Повторн
 - [x] Secret scanning + push protection (0 алертов)
 - [x] CodeQL (v4), Dependency review, Scorecard
 - [x] gitleaks в CI + pre-commit
-- [x] `main` — защита без обязательного PR: прямые пуши участников,
-  запрет force-push и удаления; внешние — только через PR
+- [x] `main` — обязательный PR и CI-проверки; прямой push только
+  администраторам; запрет force-push и удаления
 - [x] `release` — ruleset: PR из `main` + обязательное ревью Copilot
 - [x] Авто-ruleset Copilot для main удалён (экономия токенов)
 - [x] Теги `v*` защищены
