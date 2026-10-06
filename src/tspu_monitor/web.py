@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import hmac
+import re
 import threading
 import webbrowser
 from pathlib import Path
@@ -142,7 +143,10 @@ def build_app(
     async def run_detail(request: web.Request) -> web.Response:
         if not _authorized(request, token):
             return _unauthorized()
-        record = engine.load_run(request.match_info["run_id"])
+        run_id = request.match_info["run_id"]
+        if not re.fullmatch(r"[0-9a-fA-F]{6,64}", run_id):
+            return web.json_response({"error": "invalid run id"}, status=400)
+        record = engine.load_run(run_id)
         if record is None:
             return web.json_response({"error": "not found"}, status=404)
         return web.json_response(record.to_dict())

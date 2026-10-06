@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -23,6 +24,9 @@ from .models import Analysis, RunRecord, utc_now_iso
 from .scenarios.base import BaseScenario, new_run_id
 from .scenarios.manager import ScenarioManager
 from .utils import ensure_writable_dir, read_json, write_json_atomic
+
+#: Идентификаторы запусков — только hex (защита от path traversal).
+RUN_ID_RE = re.compile(r"^[0-9a-fA-F]{6,64}$")
 
 
 class Engine:
@@ -134,6 +138,9 @@ class Engine:
         return records
 
     def load_run(self, run_id: str) -> RunRecord | None:
+        if not RUN_ID_RE.fullmatch(run_id or ""):
+            self.logger.warning("Некорректный run_id: %r", run_id)
+            return None
         payload = read_json(self.data_dir / f"run-{run_id}.json")
         if not payload:
             return None

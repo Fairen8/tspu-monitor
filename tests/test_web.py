@@ -108,6 +108,9 @@ async def test_runs_and_detail(client):
     missing = await client.get("/api/runs/deadbeef", headers=auth())
     assert missing.status == 404
 
+    invalid = await client.get("/api/runs/not-hex-id", headers=auth())
+    assert invalid.status == 400
+
 
 async def test_check_rejects_bad_profiles(client):
     resp = await client.post(
