@@ -761,7 +761,8 @@ curl -fsSL .../install.sh | sudo bash -s -- --version v2.1.0 --with-web
 curl -fsSL .../install.sh | sudo bash -s -- --no-service
 ```
 
-Windows (PowerShell; сетевые пробы ограничены, CLI/дашборд работают):
+Windows (PowerShell; shell-скрипты и сетевые пробы **не работают** —
+только CLI, конфигурация, отчёты и дашборд):
 
 ```powershell
 irm https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.ps1 | iex

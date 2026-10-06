@@ -175,4 +175,6 @@ Ok 'TSPU Monitor установлен'
 Write-Host "  CLI:    $cmd"
 Write-Host "  Конфиг: $ConfigDir\secrets.yaml"
 Write-Host '  Проверка: tspu-monitor version ; tspu-monitor web --open'
-Warn 'Сетевые пробы полностью работают на Linux; на Windows доступны CLI, дашборд и отчёты.'
+Warn 'Windows: сетевые пробы и shell-скрипты НЕ поддерживаются.'
+Warn 'Доступны только CLI, конфигурация, отчёты и веб-дашборд.'
+Warn 'Для диагностики используйте Linux: Docker, LXC, .deb или install.sh.'

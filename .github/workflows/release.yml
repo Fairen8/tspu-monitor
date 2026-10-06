@@ -71,6 +71,8 @@ jobs:
           python scripts/changelog_section.py "${{ steps.version.outputs.value }}" \
             --output release-notes.md \
             --fallback "История изменений — в CHANGELOG.md."
+          printf '\n---\n\n' >> release-notes.md
+          cat scripts/release_platforms.md >> release-notes.md
 
       - name: Артефакты
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

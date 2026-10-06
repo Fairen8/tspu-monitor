@@ -9,6 +9,9 @@
 
 ### Added
 
+* Релизы: заметки содержат таблицу «Артефакты и платформы» с указанием ОС
+  для каждого файла; Windows явно помечен как неподдерживаемый для
+  shell-скриптов и сетевых проб (`scripts/release_platforms.md`).
 * Добровольная анонимная статистика (`telemetry.enabled`, по умолчанию
   выключена): команда `tspu-monitor telemetry status|enable|disable|test`,
   флаги установщиков `--with-telemetry`/`-WithTelemetry`. Отправляются

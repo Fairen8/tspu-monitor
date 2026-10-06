@@ -90,8 +90,11 @@ curl -fsSL .../install.sh | sudo bash -s -- --uninstall
 irm https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.ps1 | iex
 ```
 
-> Сетевые пробы полностью работают на Linux (нужны ping/traceroute/nmap/dig);
-> на Windows доступны CLI, конфигурация, отчёты и веб-дашборд.
+> **Windows:** shell-скрипты (`install.sh`, `deploy/*`) и сетевые пробы
+> **не работают** — нужны Linux-утилиты (`ping -M`, `traceroute`, `nmap`,
+> `dig`) и `CAP_NET_RAW`. `install.ps1` даёт только CLI, конфигурацию,
+> отчёты и дашборд. Для диагностики используйте Linux: Docker, LXC,
+> `.deb` или `install.sh`.
 
 ### Docker
 

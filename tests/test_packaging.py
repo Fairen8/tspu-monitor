@@ -98,3 +98,15 @@ def test_installers_present():
         assert flag in script
     for distro in ("apt-get", "dnf", "apk", "pacman", "zypper", "brew"):
         assert distro in script
+
+
+def test_release_platform_notes():
+    notes = (ROOT / "scripts" / "release_platforms.md").read_text(encoding="utf-8")
+    for needle in ("Debian", "Windows", "install.sh", "install.ps1", ".deb", ".pyz"):
+        assert needle in notes, f"нет упоминания {needle}"
+    assert "НЕ работает" in notes
+
+    workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "release_platforms.md" in workflow
