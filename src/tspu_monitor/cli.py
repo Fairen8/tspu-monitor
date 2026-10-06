@@ -474,10 +474,13 @@ def cmd_self_test(args: argparse.Namespace, config: AppConfig) -> int:
         str(webhook.get("url") or "не настроен"),
     )
     telegram = config.secrets.get("telegram", {}) or {}
+    telegram_configured = bool(telegram.get("enabled")) and bool(
+        str(telegram.get("bot_token") or "").strip()
+    )
     add(
         "telegram",
-        bool(telegram.get("enabled") and telegram.get("bot_token")),
-        "настроен" if telegram.get("bot_token") else "не настроен",
+        telegram_configured,
+        "настроен" if telegram_configured else "не настроен",
     )
 
     critical_failed = [c for c in checks if c["critical"] and not c["ok"]]

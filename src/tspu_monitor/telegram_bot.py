@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import Any
 
 from . import __version__
@@ -22,6 +23,20 @@ from .engine import Engine
 from .logging_setup import get_logger, read_last_lines
 from .reporter import Reporter
 from .utils import truncate
+
+
+def redact_secret(text: str, secret: str | None) -> str:
+    """Убрать секрет (например, токен бота) из текста перед логированием."""
+    if secret and secret in text:
+        return text.replace(secret, "***")
+    return text
+
+
+def safe_proxy(proxy: str | None) -> str:
+    """Показать прокси без учётных данных (``user:pass@``)."""
+    if not proxy:
+        return "нет"
+    return re.sub(r"//[^/@]+@", "//***@", proxy)
 
 HELP_TEXT = (
     "TSPU Monitor — управление\n\n"
@@ -97,8 +112,9 @@ class TelegramBot:
             async with self._session.post(url, json=params, timeout=timeout) as resp:
                 return await resp.json()
         except Exception as exc:  # noqa: BLE001
-            self.logger.warning("Telegram API %s: %s", method, exc)
-            return {"ok": False, "description": str(exc)}
+            message = redact_secret(str(exc), self.token)
+            self.logger.warning("Telegram API %s: %s", method, message)
+            return {"ok": False, "description": message}
 
     async def close(self) -> None:
         if self._session is not None and not self._session.closed:
@@ -131,7 +147,7 @@ class TelegramBot:
                 data = await resp.json()
                 return bool(data.get("ok"))
         except Exception as exc:  # noqa: BLE001
-            self.logger.warning("sendDocument: %s", exc)
+            self.logger.warning("sendDocument: %s", redact_secret(str(exc), self.token))
             return False
 
     # ------------------------------------------------------------------
@@ -149,7 +165,7 @@ class TelegramBot:
         self.logger.info(
             "Telegram-бот @%s запущен (прокси: %s)",
             (me.get("result") or {}).get("username"),
-            self.proxy or "нет",
+            safe_proxy(self.proxy),
         )
         try:
             while not stop_event.is_set():
