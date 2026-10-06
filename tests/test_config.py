@@ -29,6 +29,13 @@ def test_deep_merge_nested():
     assert base["a"]["b"] == 1
 
 
+def test_deep_merge_does_not_share_nested_dicts():
+    base = {"a": {"b": 1}}
+    merged = deep_merge(base, {})
+    merged["a"]["b"] = 2
+    assert base["a"]["b"] == 1
+
+
 def test_get_set_dotted():
     data = {"a": {"b": {"c": 1}}}
     assert get_dotted(data, "a.b.c") == 1

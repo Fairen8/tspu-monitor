@@ -72,6 +72,16 @@ web:
   port: 8787
   refresh_seconds: 30        # автообновление дашборда
 
+telemetry:
+  # Анонимная статистика: включена по умолчанию, отключается одной командой
+  # (tspu-monitor telemetry disable). Отправляются только обезличенные
+  # метрики: версия, ОС, уровни и типы блокировок. Адреса, хосты, секреты
+  # не передаются. Сбои отправки игнорируются.
+  # Подробнее: DOCS.md → «Анонимная статистика».
+  enabled: true
+  url: "https://statistics.fairen8.ru/api/v1/events"
+  timeout_seconds: 3
+
 webhook:
   enabled: false
   url: ""                    # например: https://n8n.example.com/webhook/tspu

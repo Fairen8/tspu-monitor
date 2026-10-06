@@ -87,3 +87,48 @@ def test_release_script_present():
     content = script.read_text(encoding="utf-8")
     assert "release" in content
     assert "gh pr create" in content
+
+
+def test_installers_present():
+    for name in ("install.sh", "install.ps1"):
+        assert (ROOT / name).exists(), f"нет установщика {name}"
+
+    script = (ROOT / "install.sh").read_text(encoding="utf-8")
+    for flag in (
+        "--version",
+        "--prefix",
+        "--no-service",
+        "--with-web",
+        "--no-telemetry",
+        "--uninstall",
+    ):
+        assert flag in script
+    for distro in ("apt-get", "dnf", "apk", "pacman", "zypper", "brew"):
+        assert distro in script
+
+
+def test_release_platform_notes():
+    notes = (ROOT / "scripts" / "release_platforms.md").read_text(encoding="utf-8")
+    for needle in ("Debian", "Windows", "install.sh", "install.ps1", ".deb", ".pyz"):
+        assert needle in notes, f"нет упоминания {needle}"
+    assert "НЕ работает" in notes
+
+    workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "release_platforms.md" in workflow
+
+
+def test_copilot_review_setup():
+    instructions = ROOT / ".github" / "copilot-instructions.md"
+    assert instructions.exists()
+    assert "ревью" in instructions.read_text(encoding="utf-8").lower()
+
+    script = (ROOT / "scripts" / "protect-repo.sh").read_text(encoding="utf-8")
+    assert "copilot_code_review" in script
+    assert "review_on_push" in script
+    assert "rules/branches" not in script
+    # main: PR обязателен, прямой push — только администраторам
+    assert "branches/main/protection" in script
+    assert '"enforce_admins": false' in script
+    assert '"required_approving_review_count": 0' in script

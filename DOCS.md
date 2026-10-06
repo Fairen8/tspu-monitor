@@ -23,6 +23,7 @@ CLI, конфигурация, отчёты, автоматизация, раз�
 14. [Устранение неполадок](#14-устранение-неполадок)
 15. [FAQ](#15-faq)
 16. [Веб-дашборд и API](#16-веб-дашборд-и-api)
+17. [Анонимная статистика](#17-анонимная-статистика)
 
 ---
 
@@ -351,6 +352,7 @@ tspu-monitor [--config-dir DIR] [--log-level LEVEL] [--no-color] <команда
 | `self-test` | проверка окружения |
 | `daemon` | демон: расписание, отчёты, webhook, Telegram |
 | `web` | веб-дашборд и REST API |
+| `telemetry` | добровольная анонимная статистика |
 | `version` | версия |
 
 ### 7.1. `check`
@@ -419,6 +421,8 @@ tspu-monitor config validate
 | `web.host` | str |
 | `web.port` | int |
 | `web.refresh_seconds` | int |
+| `telemetry.enabled` | bool |
+| `telemetry.url` | str |
 | `webhook.enabled` | bool |
 | `webhook.url` | str |
 | `webhook.min_level` | str |
@@ -496,6 +500,9 @@ tspu-monitor web [--host HOST] [--port PORT] [--open] [--allow-remote-no-auth]
 | `web.host` | `127.0.0.1` | адрес дашборда (не-loopback требует токен) |
 | `web.port` | `8787` | порт дашборда |
 | `web.refresh_seconds` | `30` | автообновление дашборда |
+| `telemetry.enabled` | `false` | добровольная анонимная статистика |
+| `telemetry.url` | `https://statistics.fairen8.ru/api/v1/events` | приёмник статистики |
+| `telemetry.timeout_seconds` | `3` | таймаут отправки |
 | `webhook.enabled` | `false` | включить webhook |
 | `webhook.url` | `""` | адрес |
 | `webhook.min_level` | `medium` | минимальный уровень отправки |
@@ -720,16 +727,52 @@ bash deploy/lxc/proxmox-create.sh 210 tspu-monitor
 net_admin net_bind_service`. Подробности и частые проблемы —
 [`deploy/lxc/README.md`](deploy/lxc/README.md).
 
-### 12.4. Bare-metal / VM
+### 12.4. Универсальный установщик (Linux и macOS)
+
+Одна команда — сам определяет дистрибутив и пакетный менеджер:
 
 ```bash
-sudo bash install.sh
-sudoedit /opt/tspu-monitor/config/secrets.yaml
-tspu-monitor config validate
-systemctl enable --now tspu-monitor
+curl -fsSL https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.sh | sudo bash
 ```
 
-`install.sh` идемпотентен: обновляет код и зависимости, не перезаписывая
+Поддерживаются Debian/Ubuntu, RHEL/CentOS/Rocky/Alma/Fedora, Alpine,
+Arch/Manjaro, openSUSE и macOS (Homebrew). Установщик:
+
+1. ставит системные зависимости (ping, traceroute, nmap, dig, openssl);
+2. находит Python ≥ 3.11, создаёт venv и ставит пакет;
+3. создаёт CLI `/usr/local/bin/tspu-monitor` и сервис
+   (systemd, OpenRC или без сервиса);
+4. создаёт конфиги, не перезаписывая существующие.
+
+| Флаг | Назначение |
+|---|---|
+| `--version REF` | версия (тег `vX.Y.Z`) или `main` |
+| `--prefix DIR` | каталог установки (`/opt/tspu-monitor`) |
+| `--no-deps` | не ставить системные пакеты |
+| `--no-service` | не создавать сервис |
+| `--with-web` | включить веб-дашборд |
+| `--web-host HOST`, `--web-port PORT` | адрес и порт дашборда |
+| `--uninstall` | удалить (данные сохраняются; `TSPU_PURGE=1` — удалить всё) |
+
+Примеры:
+
+```bash
+curl -fsSL .../install.sh | sudo bash -s -- --version v2.1.0 --with-web
+curl -fsSL .../install.sh | sudo bash -s -- --no-service
+```
+
+Windows (PowerShell; shell-скрипты и сетевые пробы **не работают** —
+только CLI, конфигурация, отчёты и дашборд):
+
+```powershell
+irm https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.ps1 | iex
+```
+
+Установщик сам поставит Python 3.11+ (winget → python.org). В режиме
+`irm | iex` флаги задаются переменными окружения: `TSPU_PREFIX`,
+`TSPU_VERSION`, `TSPU_WITH_WEB=1`, `TSPU_NO_TELEMETRY=1`, `TSPU_UNINSTALL=1`.
+
+Установщик идемпотентен: обновляет код и зависимости, не перезаписывая
 конфиги и данные.
 
 ### 12.5. systemd
@@ -924,5 +967,54 @@ curl -s localhost:8787/metrics
 
 ---
 
-*Документация соответствует TSPU Monitor 2.1.0. При изменении кода
+## 17. Анонимная статистика
+
+Обезличенные метрики. **Включена по умолчанию**, отключается одной
+командой.
+
+```bash
+tspu-monitor telemetry disable    # выключить
+tspu-monitor telemetry status     # состояние и client_id
+tspu-monitor telemetry enable     # снова включить
+tspu-monitor telemetry test       # ручная проверка приёмника
+```
+
+Установщики: отключить при установке — `install.sh --no-telemetry`,
+`install.ps1 -NoTelemetry`. Приёмник по умолчанию —
+`https://statistics.fairen8.ru/api/v1/events` (меняется `telemetry.url`).
+
+### 17.1. Что отправляется
+
+Только обезличенные технические метрики:
+
+* анонимный `client_id` — случайный UUID, хранится локально
+  (`data/telemetry.json`), не связан с пользователем;
+* версия, ОС (идентификатор дистрибутива), архитектура, версия Python;
+* по каждому сценарию: имя, уровень, баллы, типы блокировок, обрывы;
+* счётчики (проверки, critical/warning) и включённые функции
+  (дашборд/webhook/Telegram — булевы флаги).
+
+События: `install` (однократно) и `run` (после каждой проверки).
+
+### 17.2. Что НЕ отправляется
+
+* IP-адреса, домены, имена хостов и цели проб;
+* результаты проб, тексты ошибок, доказательства, причины, рекомендации;
+* токены, ID Telegram, содержимое конфигов;
+* персональные данные любого рода.
+
+> Любой HTTPS-сервер видит IP соединения (это неизбежно); в самой нагрузке
+> IP не передаётся. Нагрузка описана выше и проверяется тестами
+> (`tests/test_telemetry.py`).
+
+### 17.3. Поведение при сбоях
+
+Если сайт недоступен, нет сети или истёк таймаут — событие молча
+отбрасывается: пользователю ничего не выводится, в журнал попадает только
+DEBUG-строка (`tspu.telemetry`). Отправка не задерживает проверки и не
+влияет на их результат. Ручная команда `telemetry test` сообщает результат.
+
+---
+
+*Документация соответствует TSPU Monitor 2.1.1. При изменении кода
 обновляйте её вместе с функциональностью. Лицензия — [MIT](LICENSE).*

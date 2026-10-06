@@ -11,7 +11,7 @@ include Makefile
 
 recursive-include config *.yaml
 recursive-include deploy *.sh *.service *.md
-recursive-include scripts *.sh *.py
+recursive-include scripts *.sh *.py *.md
 recursive-include src/tspu_monitor py.typed templates/*.html
 
 global-exclude __pycache__ *.py[cod] .DS_Store

@@ -58,7 +58,50 @@ JSON и exit-коды; разворачивается в Docker, LXC (Proxmox) �
 
 ## Установка
 
-### Docker (рекомендуется)
+### Одна команда (Linux и macOS)
+
+Скрипт сам определит дистрибутив (Debian/Ubuntu, RHEL/Fedora, Alpine,
+Arch, openSUSE, macOS), поставит зависимости, создаст venv, CLI и сервис:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.sh | sudo bash
+```
+
+Полезные варианты:
+
+```bash
+# конкретная версия
+curl -fsSL .../install.sh | sudo bash -s -- --version v2.1.0
+# сразу с веб-дашбордом (на 127.0.0.1:8787)
+curl -fsSL .../install.sh | sudo bash -s -- --with-web
+# без сервиса (только CLI)
+curl -fsSL .../install.sh | sudo bash -s -- --no-service
+# удаление
+curl -fsSL .../install.sh | sudo bash -s -- --uninstall
+```
+
+Установщик также приложен к каждому релизу:
+`https://github.com/Fairen8/tspu-monitor/releases/latest/download/install.sh`
+(для конкретной версии добавьте `--version vX.Y.Z`).
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.ps1 | iex
+```
+
+Установщик сам поставит Python 3.11+ (winget, при необходимости —
+установщик python.org). В режиме `irm | iex` параметры задаются переменными
+окружения: `TSPU_PREFIX`, `TSPU_VERSION`, `TSPU_WITH_WEB=1`,
+`TSPU_NO_TELEMETRY=1`, `TSPU_UNINSTALL=1`.
+
+> **Windows:** shell-скрипты (`install.sh`, `deploy/*`) и сетевые пробы
+> **не работают** — нужны Linux-утилиты (`ping -M`, `traceroute`, `nmap`,
+> `dig`) и `CAP_NET_RAW`. `install.ps1` даёт только CLI, конфигурацию,
+> отчёты и дашборд. Для диагностики используйте Linux: Docker, LXC,
+> `.deb` или `install.sh`.
+
+### Docker
 
 ```bash
 git clone https://github.com/Fairen8/tspu-monitor.git
@@ -200,6 +243,20 @@ Bot API может быть недоступен из-за DPI. Монитор �
 Telegram**; сетевые пробы всегда идут напрямую. Варианты: zapret на
 хосте/роутере (прозрачно) или `telegram.proxy` (HTTP/SOCKS5).
 Инструкция: [`deploy/zapret/README.md`](deploy/zapret/README.md).
+
+---
+
+## Приватность
+
+Анонимная статистика **включена по умолчанию** и отключается одной командой:
+
+```bash
+tspu-monitor telemetry disable    # или при установке: --no-telemetry
+```
+
+Отправляются только обезличенные метрики (версия, ОС, уровни, типы
+блокировок); адреса, хосты и секреты не передаются. Сбои отправки
+игнорируются молча. Подробнее — [DOCS.md](DOCS.md#17-анонимная-статистика).
 
 ---
 

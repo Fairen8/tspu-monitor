@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import os
 from pathlib import Path
@@ -72,6 +73,11 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "port": 8787,
         "refresh_seconds": 30,
     },
+    "telemetry": {
+        "enabled": True,
+        "url": "https://statistics.fairen8.ru/api/v1/events",
+        "timeout_seconds": 3,
+    },
     "webhook": {
         "enabled": False,
         "url": "",
@@ -123,6 +129,8 @@ CONFIG_ALLOWED_KEYS: dict[str, Any] = {
     "web.host": str,
     "web.port": int,
     "web.refresh_seconds": int,
+    "telemetry.enabled": lambda v: str(v).lower() in ("1", "true", "yes", "on"),
+    "telemetry.url": str,
     "webhook.enabled": lambda v: str(v).lower() in ("1", "true", "yes", "on"),
     "webhook.url": str,
     "webhook.min_level": str,
@@ -156,13 +164,17 @@ def save_yaml(path: os.PathLike | str, data: dict[str, Any]) -> None:
 
 
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
-    """Рекурсивно слить ``override`` поверх ``base`` (без мутации base)."""
-    result: dict[str, Any] = dict(base)
+    """Рекурсивно слить ``override`` поверх ``base`` (без мутации base).
+
+    База копируется глубоко: вложенные словари не разделяются с исходным
+    объектом, поэтому результат можно безопасно изменять.
+    """
+    result: dict[str, Any] = copy.deepcopy(base)
     for key, value in (override or {}).items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
             result[key] = deep_merge(result[key], value)
         else:
-            result[key] = value
+            result[key] = copy.deepcopy(value)
     return result
 
 
@@ -355,6 +367,9 @@ def validate_config(config: AppConfig) -> list[str]:
             "web.host не loopback, но secrets.web.token не задан — "
             "доступ без авторизации запрещён"
         )
+
+    if config.get("telemetry.enabled") and not str(config.get("telemetry.url", "")):
+        problems.append("telemetry.enabled=true, но telemetry.url не задан")
 
     if not config.get("scenarios.enabled"):
         problems.append("scenarios.enabled пуст — проверки не будут выполняться")

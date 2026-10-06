@@ -7,6 +7,45 @@
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-10-06
+
+### Changed
+
+* Защита веток: `main` — обязательный PR и CI-проверки, прямой push только
+  администраторам (`enforce_admins=false`), write/maintain и внешние — через
+  PR; `release` — ruleset с обязательным PR из `main`, CI-проверками и
+  обязательным ревью Copilot (только для релизных PR; `review_on_push` и
+  ревью черновиков отключены — экономия premium-запросов).
+* Добавлены `.github/copilot-instructions.md` (фокус ревью) и обновлён
+  `scripts/protect-repo.sh` под новую схему; авто-ruleset Copilot для
+  ветки по умолчанию удаляется.
+
+### Added
+
+* Релизы: заметки содержат таблицу «Артефакты и платформы» с указанием ОС
+  для каждого файла; Windows явно помечен как неподдерживаемый для
+  shell-скриптов и сетевых проб (`scripts/release_platforms.md`).
+* Анонимная статистика (`telemetry.enabled`, включена по умолчанию,
+  отключается командой `tspu-monitor telemetry disable` или флагами
+  установщиков `--no-telemetry`/`-NoTelemetry`). Отправляются
+  только обезличенные метрики; сбои игнорируются молча.
+* Универсальный установщик `install.sh` одной командой: автоопределение
+  дистрибутива (Debian/Ubuntu, RHEL/Fedora, Alpine, Arch, openSUSE, macOS),
+  установка зависимостей, venv, CLI и сервиса (systemd/OpenRC); флаги
+  `--with-web`, `--version`, `--no-service`, `--uninstall`.
+* Установщик `install.ps1` для Windows (CLI, конфигурация, дашборд).
+* CI: shellcheck и bash-синтаксис, смоук-тесты установки на чистом
+  Debian 12 и Windows; установщики прикладываются к релизу.
+
+### Fixed
+
+* Windows-установщик: авто-установка Python 3.11+ (winget, при
+  необходимости — установщик python.org), безопасные ошибки в режиме
+  `irm | iex` (терминал не закрывается), поддержка переменных окружения
+  `TSPU_PREFIX`, `TSPU_VERSION`, `TSPU_REPO`, `TSPU_SRC`,
+  `TSPU_WITH_WEB`, `TSPU_NO_TELEMETRY`, `TSPU_UNINSTALL`.
+* CI: смоук-тест `install.ps1` в режиме `irm | iex`.
+
 ## [2.1.0] - 2026-10-06
 
 ### Added
@@ -88,6 +127,7 @@
 * Webhook-авторизация через Bearer-токен.
 * Whitelist Telegram-пользователей и логирование неавторизованных попыток.
 
-[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.1
 [2.1.0]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.0
 [2.0.0]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.0.0
