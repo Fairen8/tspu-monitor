@@ -80,6 +80,10 @@ curl -fsSL .../install.sh | sudo bash -s -- --no-service
 curl -fsSL .../install.sh | sudo bash -s -- --uninstall
 ```
 
+Установщик также приложен к каждому релизу:
+`https://github.com/Fairen8/tspu-monitor/releases/latest/download/install.sh`
+(для конкретной версии добавьте `--version vX.Y.Z`).
+
 ### Windows (PowerShell)
 
 ```powershell
