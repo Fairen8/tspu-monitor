@@ -3,6 +3,11 @@
 Чеклист владельца: публикация, защита `main`, сканеры, релизы.
 Часть шагов автоматизирована — [`scripts/protect-repo.sh`](../scripts/protect-repo.sh).
 
+> **Статус (2026-10-06):** репозиторий публичный; branch protection,
+> secret scanning, push protection, Dependabot и защита тегов включены;
+> CodeQL и Scorecard отработали успешно; открытых алертов нет.
+> Осталось: сделать GHCR-пакет публичным (см. §5).
+
 ## 0. Предпосылки
 
 * Установлен и авторизован [GitHub CLI](https://cli.github.com/): `gh auth login`.
@@ -128,16 +133,17 @@ git push origin v2.0.1
 
 - [x] Репозиторий публичный, есть описание и topics
 - [x] Dependabot alerts + security updates
-- [x] gitleaks в CI + pre-commit
-- [ ] `bash scripts/protect-repo.sh` выполнен (PR, 1 approve, обязательные checks)
-- [ ] Secret scanning + push protection включены
-- [ ] CodeQL и Dependency review видны в Actions
-- [ ] Workflow permissions — read-only
-- [ ] GHCR-пакет публичный
-- [ ] Подписанные коммиты (рекомендуется)
-- [ ] Теги `v*` защищены
-- [ ] Раздел CHANGELOG и версия согласованы
-- [ ] Релиз проверен: артефакты, `docker pull`
+- [x] gitleaks в CI + pre-commit (работает и на PR)
+- [x] Branch protection: PR + 1 approve + CODEOWNERS + обязательные checks
+- [x] Secret scanning + push protection (0 алертов)
+- [x] CodeQL (v4) и Dependency review настроены
+- [x] OpenSSF Scorecard еженедельно
+- [x] Workflow permissions — read-only, авто-approve выключен
+- [x] Теги `v*` защищены ruleset «Protect release tags»
+- [x] Раздел CHANGELOG и версия согласованы
+- [x] Релиз v2.0.0: артефакты и Docker-образ собраны
+- [ ] GHCR-пакет публичный (ожидает владельца, см. §5)
+- [ ] Подписанные коммиты и обязательная 2FA (рекомендуется)
 
 ## 8. Инциденты
 
