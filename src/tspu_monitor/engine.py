@@ -141,13 +141,20 @@ class Engine:
         if not RUN_ID_RE.fullmatch(run_id or ""):
             self.logger.warning("Некорректный run_id: %r", run_id)
             return None
-        payload = read_json(self.data_dir / f"run-{run_id}.json")
-        if not payload:
-            return None
-        try:
-            return RunRecord.from_dict(payload)
-        except (TypeError, ValueError, KeyError):
-            return None
+        # Путь берём только из glob (не из пользовательского ввода) —
+        # это исключает path traversal.
+        wanted = f"run-{run_id}.json"
+        for path in self.data_dir.glob("run-*.json"):
+            if path.name != wanted:
+                continue
+            payload = read_json(path)
+            if not payload:
+                return None
+            try:
+                return RunRecord.from_dict(payload)
+            except (TypeError, ValueError, KeyError):
+                return None
+        return None
 
     # ------------------------------------------------------------------
     def status_snapshot(self) -> dict[str, Any]:
