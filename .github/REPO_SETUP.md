@@ -91,7 +91,12 @@ bash scripts/protect-repo.sh Fairen8/tspu-monitor
 | Dependency review | workflow `dependency-review.yml` | запускается на PR |
 | OpenSSF Scorecard | workflow `scorecard.yml` | еженедельно |
 | gitleaks в CI | workflow `ci.yml`, job `Secret scan` | на каждый push/PR |
+| Пиннинг GitHub Actions по SHA | все workflow (`uses: owner/repo@sha # vN`) | Dependabot обновляет |
 | pre-commit (ruff + gitleaks) | `.pre-commit-config.yaml` | локально у участников |
+
+> Scorecard публикует отчёт только артефактом (без загрузки в code scanning),
+> чтобы не создавать review-комментарии в PR. Реальные алерты присылает
+> только CodeQL.
 
 Локально:
 
