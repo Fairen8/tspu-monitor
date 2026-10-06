@@ -9,6 +9,10 @@
 
 ### Added
 
+* Веб-дашборд и REST API (`tspu-monitor web`, `daemon --web`): сводка,
+  история уровня, сценарии с пробами, запуск проверки, метрики Prometheus.
+* Артефакты релиза: `.deb`-пакет (`scripts/build-deb.sh`) и переносимый
+  zipapp (`scripts/build-archive.sh`) вместе с wheel/sdist.
 * Скрипты `scripts/changelog_section.py` (заметки релиза из CHANGELOG) и
   `scripts/pytest_summary.py` (markdown-сводка тестов), покрытые тестами.
 * Авто-публикация релизов: ветка `release` (только PR из `main`),
@@ -16,6 +20,7 @@
   мержа (тег, GitHub Release, Docker-образ).
 * Мультиархитектурные Docker-образы (`linux/amd64`, `linux/arm64`)
   с SBOM и provenance; pre-release для версий с суффиксом (`-rc.1`).
+* Прогресс проверок в консоли (сценарии печатаются по мере завершения).
 
 ### Changed
 

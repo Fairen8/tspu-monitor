@@ -50,6 +50,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip build
           python -m build
+
+      - name: DEB-пакет и переносимый zipapp
+        run: |
+          bash scripts/build-deb.sh "${{ steps.version.outputs.value }}" dist
+          bash scripts/build-archive.sh "${{ steps.version.outputs.value }}" dist
+
+      - name: Контрольные суммы
+        run: |
           cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS
 
       - name: Заметки из CHANGELOG
@@ -79,7 +87,7 @@ jobs:
             echo ""
             echo "- Версия: \`${{ steps.version.outputs.value }}\`"
             echo "- Pre-release: ${{ steps.version.outputs.prerelease }}"
-            echo "- Артефакты: wheel, sdist, SHA256SUMS"
+            echo "- Артефакты: wheel, sdist, .deb, .pyz, SHA256SUMS"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ------------------------------------------------------------------
@@ -111,6 +119,8 @@ jobs:
           files: |
             dist/*.whl
             dist/*.tar.gz
+            dist/*.deb
+            dist/*.pyz
             dist/SHA256SUMS
 
   # ------------------------------------------------------------------

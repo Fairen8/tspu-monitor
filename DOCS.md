@@ -22,6 +22,7 @@ CLI, конфигурация, отчёты, автоматизация, раз�
 13. [Разработка](#13-разработка)
 14. [Устранение неполадок](#14-устранение-неполадок)
 15. [FAQ](#15-faq)
+16. [Веб-дашборд и API](#16-веб-дашборд-и-api)
 
 ---
 
@@ -349,6 +350,7 @@ tspu-monitor [--config-dir DIR] [--log-level LEVEL] [--no-color] <команда
 | `logs` | последние строки журнала |
 | `self-test` | проверка окружения |
 | `daemon` | демон: расписание, отчёты, webhook, Telegram |
+| `web` | веб-дашборд и REST API |
 | `version` | версия |
 
 ### 7.1. `check`
@@ -413,6 +415,10 @@ tspu-monitor config validate
 | `scheduler.report_day` | str |
 | `scheduler.report_time` | str |
 | `classification.throttle_min_kbps` | int |
+| `web.enabled` | bool |
+| `web.host` | str |
+| `web.port` | int |
+| `web.refresh_seconds` | int |
 | `webhook.enabled` | bool |
 | `webhook.url` | str |
 | `webhook.min_level` | str |
@@ -435,12 +441,24 @@ webhook/Telegram. JSON: `self-test --json`. Критические пробле�
 ### 7.7. `daemon`
 
 ```
-tspu-monitor daemon [--interval N] [--no-telegram] [--no-webhook]
+tspu-monitor daemon [--interval N] [--no-telegram] [--no-webhook] [--web]
 ```
 
 Запускает планировщик (проверки каждые `check_interval_minutes`, отчёт
-по `report_day`/`report_time`), webhook и, при настройке, Telegram-бота.
-Корректно обрабатывает SIGINT/SIGTERM.
+по `report_day`/`report_time`), webhook, веб-дашборд (`--web` или
+`web.enabled: true`) и, при настройке, Telegram-бота. Корректно
+обрабатывает SIGINT/SIGTERM.
+
+### 7.8. `web`
+
+```
+tspu-monitor web [--host HOST] [--port PORT] [--open] [--allow-remote-no-auth]
+```
+
+Запускает веб-дашборд с REST API (по умолчанию `127.0.0.1:8787`).
+Не-loopback адрес без `secrets.web.token` запрещён; обойти проверку можно
+флагом `--allow-remote-no-auth` (не рекомендуется). `--open` открывает
+браузер.
 
 ---
 
@@ -474,6 +492,10 @@ tspu-monitor daemon [--interval N] [--no-telegram] [--no-webhook]
 | `testing.samples` | `2` | повторов (обрывы) |
 | `classification.level_thresholds` | `{medium:25, high:50, full:70}` | границы уровней |
 | `classification.throttle_min_kbps` | `256` | порог шейпинга |
+| `web.enabled` | `false` | запускать дашборд вместе с демоном |
+| `web.host` | `127.0.0.1` | адрес дашборда (не-loopback требует токен) |
+| `web.port` | `8787` | порт дашборда |
+| `web.refresh_seconds` | `30` | автообновление дашборда |
 | `webhook.enabled` | `false` | включить webhook |
 | `webhook.url` | `""` | адрес |
 | `webhook.min_level` | `medium` | минимальный уровень отправки |
@@ -493,6 +515,7 @@ tspu-monitor daemon [--interval N] [--no-telegram] [--no-webhook]
 | `telegram.proxy` | `http://…` или `socks5://…` (только для Telegram) |
 | `telegram.api_base` | адрес Bot API (зеркало) |
 | `webhook.token` | Bearer-токен для webhook |
+| `web.token` | токен веб-дашборда (обязателен вне loopback) |
 | `targets.wireguard_server/port` | WireGuard |
 | `targets.amnezia_server/port` | AmneziaWG |
 | `targets.openvpn_server/port` | OpenVPN |
@@ -846,6 +869,58 @@ Bot API.
 
 **Поддерживается ли Windows?** Целевая платформа — Linux (Docker/LXC);
 часть проб требует Linux-утилит и capabilities.
+
+---
+
+## 16. Веб-дашборд и API
+
+### 16.1. Запуск
+
+```bash
+tspu-monitor web --open          # локально, с открытием браузера
+tspu-monitor daemon --web        # демон + расписание + дашборд
+```
+
+Настройки: `web.enabled`, `web.host` (по умолчанию `127.0.0.1`),
+`web.port` (`8787`), `web.refresh_seconds` (`30`), а также токен
+`secrets.web.token`. Не-loopback адрес без токена отклоняется при запуске.
+
+### 16.2. Возможности дашборда
+
+* сводка: уровень блокировок, обрывы, активные сценарии, время запуска;
+* история уровня по последним запускам (график);
+* сценарии с типами, доказательствами и детальными пробами;
+* агрегированные причины и рекомендации;
+* кнопка «Проверить сейчас» и автообновление;
+* токен можно ввести прямо в интерфейсе (хранится в localStorage).
+
+### 16.3. REST API
+
+| Метод | Путь | Описание |
+|---|---|---|
+| GET | `/` | HTML-дашборд |
+| GET | `/api/health` | проверка живости (без авторизации) |
+| GET | `/api/summary?limit=N` | сводка, история и последний запуск |
+| GET | `/api/runs?limit=N` | список запусков |
+| GET | `/api/runs/{run_id}` | детали запуска |
+| POST | `/api/check` | запустить проверки (`profiles`, `samples`) |
+| GET | `/metrics` | метрики Prometheus |
+
+Авторизация: `Authorization: Bearer <web.token>` или `?token=<...>`.
+Без токена API открыто только на loopback.
+
+```bash
+curl -s localhost:8787/api/summary | jq '.last_run.max_score'
+curl -s -X POST localhost:8787/api/check -H 'Content-Type: application/json' -d '{}'
+curl -s localhost:8787/metrics
+```
+
+### 16.4. Prometheus
+
+`/metrics` отдаёт `tspu_monitor_score{profile,target,level}`,
+`tspu_monitor_last_run_timestamp_seconds`, `tspu_monitor_runs_total` и
+`tspu_monitor_checks_total{severity}`. Для Docker пробросьте порт
+(`127.0.0.1:8787:8787`) и включите `web.enabled: true`.
 
 ---
 

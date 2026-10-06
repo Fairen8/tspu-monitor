@@ -43,33 +43,63 @@ JSON и exit-коды; разворачивается в Docker, LXC (Proxmox) �
 * **JSON-вывод** и предсказуемые **exit-коды** (0/1/2/3) для скриптов и CI.
 * Опциональный **Telegram-бот** с прокси/zapret (только Telegram; пробы всегда напрямую).
 
+**Интерфейсы**
+
+* Консоль с прогрессом проверок и цветным разбором аномалий.
+* **Веб-дашборд** и REST API (`/api/summary`, `/api/runs`, `/api/check`, `/metrics`).
+
 **Развёртывание**
 
 * Docker / docker compose (healthcheck, CAP_NET_RAW).
-* LXC Proxmox (скрипт создания + capabilities).
-* systemd-сервис и идемпотентный `install.sh`.
+* `.deb`-пакет, переносимый `.pyz`, wheel/sdist.
+* LXC Proxmox, systemd-сервис, идемпотентный `install.sh`.
 
 ---
 
-## Быстрый старт: Docker
+## Установка
+
+### Docker (рекомендуется)
 
 ```bash
 git clone https://github.com/Fairen8/tspu-monitor.git
 cd tspu-monitor
 
-# 1. Укажите серверы в config/secrets.yaml
-nano config/secrets.yaml
-
-# 2. Запустите
+nano config/secrets.yaml               # цели и, при необходимости, Telegram
 docker compose up -d --build
-
-# 3. Проверьте
-docker compose exec tspu-monitor tspu-monitor self-test
 docker compose exec tspu-monitor tspu-monitor check
-docker compose exec tspu-monitor tspu-monitor report
 ```
 
-## Быстрый старт: LXC (Proxmox)
+Дашборд в Docker: включите `web.enabled: true`, раскомментируйте порт
+`127.0.0.1:8787:8787` в `docker-compose.yml` и перезапустите.
+
+### Debian / Ubuntu (.deb)
+
+Готовый пакет — во вложениях [релиза](https://github.com/Fairen8/tspu-monitor/releases):
+
+```bash
+sudo apt install ./tspu-monitor_<версия>_all.deb
+sudoedit /opt/tspu-monitor/config/secrets.yaml
+sudo systemctl enable --now tspu-monitor
+```
+
+### Переносимый файл (zipapp)
+
+Один файл, нужен только Python 3.11+:
+
+```bash
+curl -LO https://github.com/Fairen8/tspu-monitor/releases/latest/download/tspu-monitor-<версия>.pyz
+chmod +x tspu-monitor-<версия>.pyz
+./tspu-monitor-<версия>.pyz check
+```
+
+### pip / wheel
+
+```bash
+pip install ./tspu_monitor-<версия>-py3-none-any.whl
+tspu-monitor check
+```
+
+### LXC (Proxmox)
 
 На узле Proxmox:
 
@@ -88,6 +118,21 @@ systemctl enable --now tspu-monitor
 ```
 
 Подробнее: [`deploy/lxc/README.md`](deploy/lxc/README.md).
+
+---
+
+## Веб-дашборд
+
+```bash
+tspu-monitor web --open     # дашборд и открыть браузер
+tspu-monitor daemon --web   # демон: расписание + отчёты + дашборд
+```
+
+Дашборд показывает уровень и историю блокировок, обрывы, типы, причины,
+рекомендации, сценарии и детальные пробы и умеет запускать проверку
+кнопкой. REST API: `/api/summary`, `/api/runs`, `/api/check`, `/metrics`
+(Prometheus). По умолчанию слушает `127.0.0.1:8787`; для внешнего доступа
+задайте `web.host` и токен `secrets.web.token`.
 
 ---
 

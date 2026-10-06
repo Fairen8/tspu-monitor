@@ -23,6 +23,18 @@ def ensure_dir(path: os.PathLike | str) -> Path:
     return p
 
 
+def ensure_writable_dir(path: os.PathLike | str, fallback: os.PathLike | str) -> Path:
+    """Вернуть первый записываемый каталог: ``path`` или ``fallback``."""
+    candidate = ensure_dir(path)
+    try:
+        probe = candidate / ".write_test"
+        probe.touch()
+        probe.unlink()
+        return candidate
+    except OSError:
+        return ensure_dir(fallback)
+
+
 def parse_iso(value: str) -> datetime:
     """Разобрать ISO-8601 (с ``Z`` или без). При ошибке — текущее UTC."""
     if not value:

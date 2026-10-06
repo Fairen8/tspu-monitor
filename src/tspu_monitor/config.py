@@ -66,6 +66,12 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "level_thresholds": {"medium": 25, "high": 50, "full": 70},
         "throttle_min_kbps": 256,
     },
+    "web": {
+        "enabled": False,
+        "host": "127.0.0.1",
+        "port": 8787,
+        "refresh_seconds": 30,
+    },
     "webhook": {
         "enabled": False,
         "url": "",
@@ -89,6 +95,7 @@ DEFAULT_SECRETS: dict[str, Any] = {
         "api_base": "https://api.telegram.org",
     },
     "webhook": {"token": None},
+    "web": {"token": None},
     "targets": {
         "wireguard_server": "",
         "wireguard_port": 51820,
@@ -112,6 +119,10 @@ CONFIG_ALLOWED_KEYS: dict[str, Any] = {
     "scheduler.report_day": str,
     "scheduler.report_time": str,
     "classification.throttle_min_kbps": int,
+    "web.enabled": lambda v: str(v).lower() in ("1", "true", "yes", "on"),
+    "web.host": str,
+    "web.port": int,
+    "web.refresh_seconds": int,
     "webhook.enabled": lambda v: str(v).lower() in ("1", "true", "yes", "on"),
     "webhook.url": str,
     "webhook.min_level": str,
@@ -332,6 +343,18 @@ def validate_config(config: AppConfig) -> list[str]:
     webhook_url = str(config.get("webhook.url", ""))
     if config.get("webhook.enabled") and not webhook_url:
         problems.append("webhook.enabled=true, но webhook.url не задан")
+
+    web_host = str(config.get("web.host", "127.0.0.1"))
+    web_port = config.get("web.port", 8787)
+    if not isinstance(web_port, int) or not (1 <= web_port <= 65535):
+        problems.append("web.port: ожидается целое 1..65535")
+    if web_host not in ("127.0.0.1", "localhost", "::1", "[::1]") and not config.secret(
+        "web.token"
+    ):
+        problems.append(
+            "web.host не loopback, но secrets.web.token не задан — "
+            "доступ без авторизации запрещён"
+        )
 
     if not config.get("scenarios.enabled"):
         problems.append("scenarios.enabled пуст — проверки не будут выполняться")

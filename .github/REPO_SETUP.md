@@ -150,8 +150,12 @@ bash scripts/release.sh 2.1.0 --dry-run  # проверки без измене�
 Скрипт выполняет: проверку CHANGELOG и тега, обновление версии, `ruff` +
 `pytest`, коммит в `main`, push, PR `main → release` и auto-merge.
 После мержа PR workflow **Publish release** создаёт тег `vX.Y.Z`,
-GitHub Release (`wheel`/`sdist`/`SHA256SUMS`) и Docker-образ. Повторная
-публикация той же версии пропускается.
+GitHub Release и Docker-образ. Повторная публикация той же версии
+пропускается.
+
+Артефакты релиза: `wheel`, `sdist`, `.deb` (`tspu-monitor_X.Y.Z_all.deb`),
+переносимый `tspu-monitor-X.Y.Z.pyz`, `SHA256SUMS`; образ —
+`ghcr.io/fairen8/tspu-monitor`.
 
 Особенности:
 

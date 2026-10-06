@@ -58,7 +58,7 @@ Security = "https://github.com/Fairen8/tspu-monitor/security/policy"
 where = ["src"]
 
 [tool.setuptools.package-data]
-tspu_monitor = ["py.typed"]
+tspu_monitor = ["py.typed", "templates/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
