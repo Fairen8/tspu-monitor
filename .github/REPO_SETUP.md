@@ -59,7 +59,9 @@ bash scripts/protect-repo.sh Fairen8/tspu-monitor
 
 ## 2.1. Защита ветки `release`
 
-Ветка `release` — единственный источник релизов. Настройки:
+Ветка `release` — единственный источник релизов. Скрипт
+`scripts/protect-repo.sh` настраивает обе ветки (`main` и `release`),
+если ветка `release` уже существует. Настройки:
 
 | Настройка | Значение |
 |---|---|
