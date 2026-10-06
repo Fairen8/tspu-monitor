@@ -7,6 +7,29 @@
 
 ## [Unreleased]
 
+### Added
+
+* Скрипты `scripts/changelog_section.py` (заметки релиза из CHANGELOG) и
+  `scripts/pytest_summary.py` (markdown-сводка тестов), покрытые тестами.
+* Авто-публикация релизов: ветка `release` (только PR из `main`),
+  workflow-хранитель источника `release-guard` и `Publish release` после
+  мержа (тег, GitHub Release, Docker-образ).
+* Мультиархитектурные Docker-образы (`linux/amd64`, `linux/arm64`)
+  с SBOM и provenance; pre-release для версий с суффиксом (`-rc.1`).
+
+### Changed
+
+* CI: отдельные job'ы Lint/Tests/Docker/Secret scan, отмена устаревших
+  прогонов, кэш Docker-слоёв, JUnit-артефакты и сводки в Step Summary.
+* Все GitHub Actions закреплены по commit SHA (Dependabot обновляет).
+* Scorecard публикует отчёт только артефактом — без шума в PR.
+* Dependabot: групповые обновления GitHub Actions.
+
+### Fixed
+
+* Безопасность: минимальная версия TLS 1.2 в python-fallback TLS-пробы;
+  токены и учётные данные прокси редактируются в логах.
+
 ## [2.0.0] - 2026-10-06
 
 Полная переработка проекта: консольное приложение с классификацией
