@@ -1,204 +1,114 @@
 # Настройка и защита репозитория
 
-Чеклист владельца: публикация, защита `main`, сканеры, релизы.
-Часть шагов автоматизирована — [`scripts/protect-repo.sh`](../scripts/protect-repo.sh).
+Схема веток, защита `release`, сканеры и релизы. Автонастройка —
+[`scripts/protect-repo.sh`](../scripts/protect-repo.sh) (идемпотентна).
 
-> **Статус (2026-10-06):** репозиторий публичный; branch protection,
-> secret scanning, push protection, Dependabot и защита тегов включены;
-> CodeQL и Scorecard отработали успешно; открытых алертов нет.
-> Осталось: сделать GHCR-пакет публичным (см. §5).
+> **Статус (2026-10-06):** `main` — без классической защиты (разработка);
+> `release` — ruleset «Release branch: PR from main + Copilot review»;
+> теги `v*` защищены; secret scanning, push protection и Dependabot
+> включены; CI/CodeQL/Scorecard зелёные.
 
-## 0. Предпосылки
+## 1. Ветки
 
-* Установлен и авторизован [GitHub CLI](https://cli.github.com/): `gh auth login`.
-* У аккаунта есть права **admin** на репозиторий.
+| Ветка | Назначение | Правила |
+|---|---|---|
+| `main` | разработка | классической защиты нет — владелец пушит напрямую, CI на каждый push |
+| `release` | релизы | ruleset: только PR (merge-commit), **только из `main`**, обязательно ревью Copilot |
 
-## 1. Публикация
+## 2. Защита `release` (ruleset)
 
-1. Settings → General → Danger Zone → **Change repository visibility** → Public.
-2. Включите обязательную **2FA** для аккаунта/организации.
-3. Перед публикацией убедитесь, что в истории нет секретов: история
-   переписана в один чистый коммит без тестовых токенов и служебных авторов.
-4. Добавьте описание и темы (Settings → General или `gh repo edit`):
+Ruleset «Release branch: PR from main + Copilot review»:
 
-   ```bash
-   gh repo edit Fairen8/tspu-monitor \
-     --description "Консольная диагностика DPI/TSPU-блокировок: уровень и типы блокировок, обрывы, причины" \
-     --add-topic tspu --add-topic dpi --add-topic censorship --add-topic vpn \
-     --add-topic wireguard --add-topic openvpn --add-topic xray --add-topic quic \
-     --add-topic network-monitoring --add-topic docker --add-topic lxc --add-topic cli
-   ```
+| Правило | Значение |
+|---|---|
+| Pull request | обязателен, разрешён только merge-commit |
+| Источник PR | **только `main`** (обязательная проверка `Source is main`) |
+| Обязательные проверки | `Source is main`, `Lint`, `Tests 3.11/3.12/3.13`, `Docker build`, `Secret scan` |
+| Ревью Copilot | **обязательно** (Copilot автоматически ревьюит PR и пишет, что исправить) |
+| Черновики | Copilot не ревьюит (`review_draft_pull_requests: false`) |
+| Повторные пуши | Copilot не ревьюит заново (`review_on_push: false`) — экономия premium-запросов |
+| Approve людей | не требуется (0) |
+| Force-push / удаление | запрещено |
+| Bypass | нет ни у кого (включая владельца) |
 
-## 2. Защита ветки `main`
+Как это работает: при открытии PR `main → release` ruleset запрашивает
+ревью Copilot; до его завершения merge заблокирован. Для PR в `main`
+никакого Copilot-ревью нет — токены не расходуются.
 
-После публикации:
+Если Copilot запросил правки: исправьте и нажмите **Re-request review**
+(повторный пуш сам ревью не запускает — так экономнее premium-запросы),
+либо отклоните ревью (dismiss) администратором и мержите. Для повторного
+запуска вручную можно также снять/вернуть готовность PR (Ready for review).
+
+> **Важно.** В Settings → Copilot → Code review **не включайте**
+> «Automatically review pull requests»: эта настройка создаёт отдельный
+> ruleset на ветку по умолчанию и ревьюит все PR. Скрипт
+> `protect-repo.sh` удаляет такой авто-ruleset («Copilot review for
+> default branch»), если он есть.
+
+## 3. Скрипт настройки
 
 ```bash
 bash scripts/protect-repo.sh Fairen8/tspu-monitor
 ```
 
-Скрипт включает:
+Скрипт: Dependabot alerts → secret scanning/push protection → снимает
+защиту `main` и классическую защиту `release` → создаёт/обновляет ruleset
+release (с Copilot-ревью) → удаляет авто-Copilot ruleset для main →
+создаёт ruleset тегов `v*`.
 
-| Настройка | Значение |
+## 4. Безопасность
+
+| Функция | Как включено |
 |---|---|
-| Обязательный Pull Request | да, 1 approve |
-| Review от CODEOWNERS | да |
-| Устаревшие approve сбрасываются | да |
-| Обязательные status checks | `Lint`, `Tests 3.11/3.12/3.13`, `Docker build`, `Secret scan`, `Анализ Python` |
-| Актуальная ветка (strict) | да |
-| Линейная история | да |
-| Разрешение обсуждений | да |
-| Force-push / удаление ветки | запрещено |
-| Администраторы | могут пушить напрямую (для релизного коммита) |
+| Dependabot alerts + security updates | `protect-repo.sh` |
+| Dependabot version updates | `.github/dependabot.yml` |
+| Secret scanning + push protection | `protect-repo.sh` |
+| CodeQL | workflow `codeql.yml` |
+| Dependency review | workflow `dependency-review.yml` |
+| OpenSSF Scorecard (артефакт, без шума в PR) | workflow `scorecard.yml` |
+| gitleaks в CI | workflow `ci.yml`, job `Secret scan` |
+| Пиннинг actions по SHA | все workflow, обновляет Dependabot |
 
-Вручную: Settings → Branches → Add branch protection rule — продублируйте
-значения. Дополнительно рекомендуется:
+## 5. Actions, секреты, GHCR
 
-* **Require signed commits** (подписанные коммиты);
-* защита тегов `v*` (Settings → Tags → Add rule: запрет удаления/перезаписи).
-
-## 2.1. Защита ветки `release`
-
-Ветка `release` — единственный источник релизов. Скрипт
-`scripts/protect-repo.sh` настраивает обе ветки (`main` и `release`),
-если ветка `release` уже существует. Настройки:
-
-| Настройка | Значение |
-|---|---|
-| Источник PR | **только `main`** (проверка `Source is main`) |
-| Обязательные status checks | `Source is main`, `Lint`, `Tests 3.11/3.12/3.13`, `Docker build`, `Secret scan` |
-| Прямые коммиты | запрещены (PR обязателен, `enforce_admins: true`) |
-| Force-push / удаление | запрещено |
-| Требование approve | без обязательных approve (владелец может вливать PR после зелёных проверок) |
-
-Проверка `Source is main` реализована workflow `release-guard.yml`:
-любой PR в `release` из ветки, отличной от `main`, падает.
-
-После мержа PR срабатывает `auto-release.yml`: версия берётся из
-`pyproject.toml`, создаётся тег `vX.Y.Z`, GitHub Release и Docker-образ.
-Если тег уже есть — публикация пропускается.
-
-## 3. Безопасность
-
-| Функция | Как включить | Статус после публикации |
-|---|---|---|
-| Dependabot alerts | `scripts/protect-repo.sh` | включено (бесплатно) |
-| Dependabot security updates | `scripts/protect-repo.sh` | включено |
-| Dependabot version updates | `.github/dependabot.yml` | PR раз в неделю |
-| Secret scanning | `scripts/protect-repo.sh` (бесплатно для public) | включено |
-| Push protection | `scripts/protect-repo.sh` | включено |
-| CodeQL | workflow `codeql.yml` (для public — бесплатно) | запускается на push/PR |
-| Dependency review | workflow `dependency-review.yml` | запускается на PR |
-| OpenSSF Scorecard | workflow `scorecard.yml` | еженедельно |
-| gitleaks в CI | workflow `ci.yml`, job `Secret scan` | на каждый push/PR |
-| Пиннинг GitHub Actions по SHA | все workflow (`uses: owner/repo@sha # vN`) | Dependabot обновляет |
-| pre-commit (ruff + gitleaks) | `.pre-commit-config.yaml` | локально у участников |
-
-> Scorecard публикует отчёт только артефактом (без загрузки в code scanning),
-> чтобы не создавать review-комментарии в PR. Реальные алерты присылает
-> только CodeQL.
-
-Локально:
-
-```bash
-pip install pre-commit
-pre-commit install
-pre-commit run --all-files
-```
-
-## 4. Actions и секреты
-
-* Settings → Actions → General → **Workflow permissions**: read-only по
-  умолчанию; release-workflow запрашивает нужные права сам
-  (`contents: write`, `packages: write`).
-* **Allow GitHub Actions to create and approve pull requests** — выключить.
-* Обязательных секретов нет: релиз использует встроенный `GITHUB_TOKEN`.
-  Для уведомлений в Telegram добавьте `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`.
-* Для деплоя используйте **Environments** с protection rules.
-
-## 5. Пакет GHCR
-
-По умолчанию контейнер-пакет остаётся приватным даже у публичного
-репозитория. Сделайте его публичным: Profile → Packages →
-`tspu-monitor` → Package settings → Change visibility → Public.
-
-Через CLI (нужен токен с `read:packages`/`write:packages`):
-
-```bash
-gh auth refresh -s write:packages
-gh api -X PATCH /user/packages/container/tspu-monitor \
-  -f visibility=public
-```
-
-Проверка:
-
-```bash
-docker pull ghcr.io/fairen8/tspu-monitor:latest
-docker run --rm ghcr.io/fairen8/tspu-monitor:latest version
-```
+* Workflow permissions — read-only; release-workflow запрашивает права сам.
+* Обязательных секретов нет (используется `GITHUB_TOKEN`).
+* GHCR-пакет `tspu-monitor` — публичный (проверка:
+  `docker pull ghcr.io/fairen8/tspu-monitor:latest`).
 
 ## 6. Релизы
 
-Версионирование — [SemVer](https://semver.org/lang/ru/); изменения — в
-`CHANGELOG.md`. Ветка `release` — единственный источник релизов.
-
 ```bash
-bash scripts/release.sh 2.1.0            # боевой прогон
-bash scripts/release.sh 2.1.0 --dry-run  # проверки без изменений
+# добавить раздел [X.Y.Z] в CHANGELOG.md, затем:
+bash scripts/release.sh 2.1.0
 ```
 
-Скрипт выполняет: проверку CHANGELOG и тега, обновление версии, `ruff` +
-`pytest`, коммит в `main`, push, PR `main → release` и auto-merge.
-После мержа PR workflow **Publish release** создаёт тег `vX.Y.Z`,
-GitHub Release и Docker-образ. Повторная публикация той же версии
-пропускается.
-
-Артефакты релиза: `wheel`, `sdist`, `.deb` (`tspu-monitor_X.Y.Z_all.deb`),
-переносимый `tspu-monitor-X.Y.Z.pyz`, `SHA256SUMS`; образ —
-`ghcr.io/fairen8/tspu-monitor`.
-
-Особенности:
-
-* образы собираются под `linux/amd64` и `linux/arm64`, с SBOM и
-  provenance-аттестациями;
-* версия с суффиксом (`v2.1.0-rc.1`) публикуется как **pre-release** и не
-  обновляет теги `X.Y`/`latest`;
-* тело GitHub Release формируется из раздела `CHANGELOG.md`
-  (`scripts/changelog_section.py`).
-
-Ручная альтернатива (без ветки release): поставить тег напрямую —
-workflow **Release** соберёт артефакты по тегу:
-
-```bash
-git tag -a v2.0.1 -m "TSPU Monitor v2.0.1"
-git push origin v2.0.1
-```
+Скрипт бампает версию, гоняет ruff/pytest, коммитит в `main`, пушит,
+открывает PR `main → release` и включает auto-merge. После мержа
+**Publish release** создаёт тег, GitHub Release (wheel/sdist/.deb/.pyz/
+SHA256SUMS) и мультиархитектурный образ. Повторная публикация версии
+пропускается. Пересборка: `gh workflow run release.yml -f tag=vX.Y.Z`.
 
 ## 7. Чеклист
 
-- [x] Репозиторий публичный, есть описание и topics
+- [x] Публичный репозиторий, описание и topics
 - [x] Dependabot alerts + security updates
-- [x] gitleaks в CI + pre-commit (работает и на PR)
-- [x] Branch protection `main`: PR + 1 approve + CODEOWNERS + обязательные checks
-- [x] Branch protection `release`: только PR из `main`, прямые коммиты запрещены
-- [x] Ветка `release` создана, проверка `Source is main` обязательна
-- [x] Автопубликация релиза после мержа в `release` (`Publish release`)
 - [x] Secret scanning + push protection (0 алертов)
-- [x] CodeQL (v4) и Dependency review настроены
-- [x] OpenSSF Scorecard еженедельно
-- [x] Workflow permissions — read-only, авто-approve выключен
-- [x] Теги `v*` защищены ruleset «Protect release tags»
-- [x] Раздел CHANGELOG и версия согласованы
-- [x] Релиз v2.0.0: артефакты и Docker-образ собраны
-- [ ] GHCR-пакет публичный (ожидает владельца, см. §5)
-- [ ] Подписанные коммиты и обязательная 2FA (рекомендуется)
+- [x] CodeQL (v4), Dependency review, Scorecard
+- [x] gitleaks в CI + pre-commit
+- [x] `main` без защиты (прямые пуши владельца), CI на каждый push
+- [x] `release` — ruleset: PR из `main` + обязательное ревью Copilot
+- [x] Авто-ruleset Copilot для main удалён (экономия токенов)
+- [x] Теги `v*` защищены
+- [x] Релиз v2.1.0: артефакты, установщики, образ
+- [x] GHCR-пакет публичный
+- [ ] Подписанные коммиты и 2FA (рекомендуется)
 
 ## 8. Инциденты
 
-* **Утёк секрет:** отзовите токен (Telegram — BotFather, webhook — на
-  стороне приёмника), удалите из истории (`git filter-repo`), заведите
-  Security Advisory.
-* **Компрометация CI:** отключите workflow, удалите self-hosted runner,
-  ротируйте токены, проверьте Audit log.
+* **Утёк секрет:** отзовите токен, удалите из истории (`git filter-repo`),
+  заведите Security Advisory.
+* **Компрометация CI:** отключите workflow, ротируйте токены, проверьте Audit log.
 * **Уязвимость в коде:** Private Vulnerability Reporting (см.
   [`SECURITY.md`](../SECURITY.md)).

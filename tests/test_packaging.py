@@ -117,3 +117,14 @@ def test_release_platform_notes():
         encoding="utf-8"
     )
     assert "release_platforms.md" in workflow
+
+
+def test_copilot_review_setup():
+    instructions = ROOT / ".github" / "copilot-instructions.md"
+    assert instructions.exists()
+    assert "ревью" in instructions.read_text(encoding="utf-8").lower()
+
+    script = (ROOT / "scripts" / "protect-repo.sh").read_text(encoding="utf-8")
+    assert "copilot_code_review" in script
+    assert "review_on_push" in script
+    assert "rules/branches" not in script
