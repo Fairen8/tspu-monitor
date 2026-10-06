@@ -9,6 +9,10 @@
 
 ### Added
 
+* Добровольная анонимная статистика (`telemetry.enabled`, по умолчанию
+  выключена): команда `tspu-monitor telemetry status|enable|disable|test`,
+  флаги установщиков `--with-telemetry`/`-WithTelemetry`. Отправляются
+  только обезличенные метрики; сбои игнорируются молча.
 * Универсальный установщик `install.sh` одной командой: автоопределение
   дистрибутива (Debian/Ubuntu, RHEL/Fedora, Alpine, Arch, openSUSE, macOS),
   установка зависимостей, venv, CLI и сервиса (systemd/OpenRC); флаги

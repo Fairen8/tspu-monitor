@@ -23,6 +23,7 @@ CLI, конфигурация, отчёты, автоматизация, раз�
 14. [Устранение неполадок](#14-устранение-неполадок)
 15. [FAQ](#15-faq)
 16. [Веб-дашборд и API](#16-веб-дашборд-и-api)
+17. [Анонимная статистика](#17-анонимная-статистика)
 
 ---
 
@@ -351,6 +352,7 @@ tspu-monitor [--config-dir DIR] [--log-level LEVEL] [--no-color] <команда
 | `self-test` | проверка окружения |
 | `daemon` | демон: расписание, отчёты, webhook, Telegram |
 | `web` | веб-дашборд и REST API |
+| `telemetry` | добровольная анонимная статистика |
 | `version` | версия |
 
 ### 7.1. `check`
@@ -419,6 +421,8 @@ tspu-monitor config validate
 | `web.host` | str |
 | `web.port` | int |
 | `web.refresh_seconds` | int |
+| `telemetry.enabled` | bool |
+| `telemetry.url` | str |
 | `webhook.enabled` | bool |
 | `webhook.url` | str |
 | `webhook.min_level` | str |
@@ -496,6 +500,9 @@ tspu-monitor web [--host HOST] [--port PORT] [--open] [--allow-remote-no-auth]
 | `web.host` | `127.0.0.1` | адрес дашборда (не-loopback требует токен) |
 | `web.port` | `8787` | порт дашборда |
 | `web.refresh_seconds` | `30` | автообновление дашборда |
+| `telemetry.enabled` | `false` | добровольная анонимная статистика |
+| `telemetry.url` | `https://statistics.fairen8.ru/api/v1/events` | приёмник статистики |
+| `telemetry.timeout_seconds` | `3` | таймаут отправки |
 | `webhook.enabled` | `false` | включить webhook |
 | `webhook.url` | `""` | адрес |
 | `webhook.min_level` | `medium` | минимальный уровень отправки |
@@ -952,6 +959,54 @@ curl -s localhost:8787/metrics
 `tspu_monitor_last_run_timestamp_seconds`, `tspu_monitor_runs_total` и
 `tspu_monitor_checks_total{severity}`. Для Docker пробросьте порт
 (`127.0.0.1:8787:8787`) и включите `web.enabled: true`.
+
+---
+
+## 17. Анонимная статистика
+
+Добровольная отправка обезличенных метрик. **По умолчанию выключена.**
+
+```bash
+tspu-monitor telemetry enable     # включить
+tspu-monitor telemetry status     # состояние и client_id
+tspu-monitor telemetry disable    # выключить
+tspu-monitor telemetry test       # ручная проверка приёмника
+```
+
+Установщики: `install.sh --with-telemetry`, `install.ps1 -WithTelemetry`.
+Приёмник по умолчанию — `https://statistics.fairen8.ru/api/v1/events`
+(меняется через `telemetry.url`).
+
+### 17.1. Что отправляется
+
+Только обезличенные технические метрики:
+
+* анонимный `client_id` — случайный UUID, хранится локально
+  (`data/telemetry.json`), не связан с пользователем;
+* версия, ОС (идентификатор дистрибутива), архитектура, версия Python;
+* по каждому сценарию: имя, уровень, баллы, типы блокировок, обрывы;
+* счётчики (проверки, critical/warning) и включённые функции
+  (дашборд/webhook/Telegram — булевы флаги).
+
+События: `install` (однократно) и `run` (после каждой проверки).
+
+### 17.2. Что НЕ отправляется
+
+* IP-адреса, домены, имена хостов и цели проб;
+* результаты проб, тексты ошибок, доказательства, причины, рекомендации;
+* токены, ID Telegram, содержимое конфигов;
+* персональные данные любого рода.
+
+> Любой HTTPS-сервер видит IP соединения (это неизбежно); в самой нагрузке
+> IP не передаётся. Нагрузка описана выше и проверяется тестами
+> (`tests/test_telemetry.py`).
+
+### 17.3. Поведение при сбоях
+
+Если сайт недоступен, нет сети или истёк таймаут — событие молча
+отбрасывается: пользователю ничего не выводится, в журнал попадает только
+DEBUG-строка (`tspu.telemetry`). Отправка не задерживает проверки и не
+влияет на их результат. Ручная команда `telemetry test` сообщает результат.
 
 ---
 

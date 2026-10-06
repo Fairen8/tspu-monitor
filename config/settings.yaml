@@ -72,6 +72,15 @@ web:
   port: 8787
   refresh_seconds: 30        # автообновление дашборда
 
+telemetry:
+  # Добровольная анонимная статистика (по умолчанию ВЫКЛЮЧЕНА).
+  # Отправляются только обезличенные метрики: версия, ОС, уровни и типы
+  # блокировок. Адреса, хосты, секреты не передаются. Сбои отправки
+  # игнорируются. Подробнее: DOCS.md → «Анонимная статистика».
+  enabled: false
+  url: "https://statistics.fairen8.ru/api/v1/events"
+  timeout_seconds: 3
+
 webhook:
   enabled: false
   url: ""                    # например: https://n8n.example.com/webhook/tspu

@@ -72,6 +72,11 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "port": 8787,
         "refresh_seconds": 30,
     },
+    "telemetry": {
+        "enabled": False,
+        "url": "https://statistics.fairen8.ru/api/v1/events",
+        "timeout_seconds": 3,
+    },
     "webhook": {
         "enabled": False,
         "url": "",
@@ -123,6 +128,8 @@ CONFIG_ALLOWED_KEYS: dict[str, Any] = {
     "web.host": str,
     "web.port": int,
     "web.refresh_seconds": int,
+    "telemetry.enabled": lambda v: str(v).lower() in ("1", "true", "yes", "on"),
+    "telemetry.url": str,
     "webhook.enabled": lambda v: str(v).lower() in ("1", "true", "yes", "on"),
     "webhook.url": str,
     "webhook.min_level": str,
@@ -355,6 +362,9 @@ def validate_config(config: AppConfig) -> list[str]:
             "web.host не loopback, но secrets.web.token не задан — "
             "доступ без авторизации запрещён"
         )
+
+    if config.get("telemetry.enabled") and not str(config.get("telemetry.url", "")):
+        problems.append("telemetry.enabled=true, но telemetry.url не задан")
 
     if not config.get("scenarios.enabled"):
         problems.append("scenarios.enabled пуст — проверки не будут выполняться")

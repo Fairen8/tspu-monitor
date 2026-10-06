@@ -11,6 +11,7 @@
 * ``self-test`` — проверка окружения;
 * ``daemon`` — периодические проверки, отчёты, webhook и Telegram;
 * ``web`` — веб-дашборд и REST API;
+* ``telemetry`` — добровольная анонимная статистика;
 * ``version``.
 
 Коды возврата: 0 — норма, 1 — ошибка, 2 — деградация (средний уровень),
@@ -186,6 +187,13 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Разрешить не-loopback адрес без токена (не рекомендуется)",
     )
+
+    p_tel = sub.add_parser("telemetry", help="Добровольная анонимная статистика")
+    tel_sub = p_tel.add_subparsers(dest="tel_action", required=True)
+    tel_sub.add_parser("status", help="Показать состояние")
+    tel_sub.add_parser("enable", help="Включить отправку")
+    tel_sub.add_parser("disable", help="Выключить отправку")
+    tel_sub.add_parser("test", help="Отправить тестовое событие")
 
     sub.add_parser("version", help="Версия")
     return parser
@@ -566,6 +574,45 @@ def cmd_web(args: argparse.Namespace, config: AppConfig) -> int:
     return run_web(config, host=host, port=port, open_browser=args.open)
 
 
+def cmd_telemetry(args: argparse.Namespace, config: AppConfig) -> int:
+    from .telemetry import Telemetry
+
+    telemetry = Telemetry(config)
+    action = args.tel_action
+
+    if action == "status":
+        print(f"Телеметрия: {'включена' if telemetry.active else 'выключена'}")
+        print(f"URL:        {telemetry.url}")
+        print(f"client_id:  {telemetry.client_id}")
+        print(f"install:    {'отправлен' if telemetry.install_sent else 'нет'}")
+        return EXIT_OK
+
+    if action in ("enable", "disable"):
+        enabled = action == "enable"
+        config.set("telemetry.enabled", enabled)
+        config.save_settings()
+        if enabled:
+            print("Анонимная статистика включена.")
+            print(
+                "Отправляются только обезличенные метрики: версия, ОС, уровни, "
+                "типы блокировок. Адреса, хосты и секреты не передаются."
+            )
+            print("Отключить: tspu-monitor telemetry disable")
+        else:
+            print("Анонимная статистика выключена.")
+        return EXIT_OK
+
+    if action == "test":
+        ok = asyncio.run(telemetry.send_test())
+        if ok:
+            print("Тестовое событие отправлено.")
+            return EXIT_OK
+        print("Отправить не удалось (сервис недоступен).")
+        return EXIT_ERROR
+
+    return EXIT_ERROR
+
+
 def cmd_daemon(args: argparse.Namespace, config: AppConfig) -> int:
     if args.interval:
         config.set("scheduler.check_interval_minutes", int(args.interval))
@@ -697,6 +744,7 @@ def main(argv: list[str] | None = None) -> int:
         "self-test": cmd_self_test,
         "daemon": cmd_daemon,
         "web": cmd_web,
+        "telemetry": cmd_telemetry,
     }
     handler = handlers.get(args.command)
     if handler is None:

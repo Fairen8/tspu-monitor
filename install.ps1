@@ -19,6 +19,7 @@ param(
     [string]$Version = 'main',
     [string]$Repo = 'Fairen8/tspu-monitor',
     [switch]$WithWeb,
+    [switch]$WithTelemetry,
     [int]$WebPort = 8787,
     [switch]$Uninstall
 )
@@ -133,6 +134,27 @@ settings_path.write_text(
 '@ | Set-Content -Encoding UTF8 -Path $webScript
     & $venvPython $webScript $ConfigDir $WebPort
     Remove-Item -Force $webScript
+}
+
+if ($WithTelemetry) {
+    $telScript = Join-Path $env:TEMP ("tspu-tel-" + [guid]::NewGuid().ToString('N') + '.py')
+    @'
+import sys
+from pathlib import Path
+
+import yaml
+
+settings_path = Path(sys.argv[1]) / "settings.yaml"
+settings = yaml.safe_load(settings_path.read_text(encoding="utf-8")) or {}
+settings.setdefault("telemetry", {})
+settings["telemetry"]["enabled"] = True
+settings_path.write_text(
+    yaml.safe_dump(settings, allow_unicode=True, sort_keys=False), encoding="utf-8"
+)
+'@ | Set-Content -Encoding UTF8 -Path $telScript
+    & $venvPython $telScript $ConfigDir
+    Remove-Item -Force $telScript
+    Ok 'Анонимная статистика включена (выключить: tspu-monitor telemetry disable)'
 }
 
 $cmd = Join-Path $BinDir 'tspu-monitor.cmd'

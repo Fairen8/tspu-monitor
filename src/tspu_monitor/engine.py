@@ -23,6 +23,7 @@ from .logging_setup import get_logger
 from .models import Analysis, RunRecord, utc_now_iso
 from .scenarios.base import BaseScenario, new_run_id
 from .scenarios.manager import ScenarioManager
+from .telemetry import Telemetry
 from .utils import ensure_writable_dir, read_json, write_json_atomic
 
 #: Идентификаторы запусков — только hex (защита от path traversal).
@@ -40,6 +41,7 @@ class Engine:
             config.settings, config.secrets, str(config.settings_path)
         )
         self.diagnosis = DiagnosisEngine(config.settings)
+        self.telemetry = Telemetry(config)
         self.data_dir = ensure_writable_dir(
             config.data_dir, Path.home() / ".tspu-monitor" / "data"
         )
@@ -109,6 +111,7 @@ class Engine:
             record.duration_seconds,
             record.max_level.title,
         )
+        await self.telemetry.send_run(record)
         return record
 
     # ------------------------------------------------------------------

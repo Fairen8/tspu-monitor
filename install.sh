@@ -17,6 +17,7 @@
 #   --with-web       включить веб-дашборд
 #   --web-host HOST  адрес дашборда (по умолчанию 127.0.0.1)
 #   --web-port PORT  порт дашборда (по умолчанию 8787)
+#   --with-telemetry включить добровольную анонимную статистику
 #   --uninstall      удалить установку (данные сохраняются)
 #   -h, --help       справка
 #
@@ -34,6 +35,7 @@ VERSION="${TSPU_VERSION:-main}"
 WEB_HOST="127.0.0.1"
 WEB_PORT="8787"
 WITH_WEB=0
+WITH_TELEMETRY=0
 WITH_DEPS=1
 WITH_SERVICE=1
 DO_UNINSTALL=0
@@ -54,7 +56,7 @@ c_err() { printf '\033[31m[x]\033[0m %s\n' "$*" >&2; }
 die()   { c_err "$*"; exit 1; }
 
 usage() {
-    sed -n '2,32p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//' || true
+    sed -n '2,34p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//' || true
 }
 
 while [[ $# -gt 0 ]]; do
@@ -66,6 +68,7 @@ while [[ $# -gt 0 ]]; do
         --with-web) WITH_WEB=1; shift ;;
         --web-host) WEB_HOST="${2:?--web-host требует значение}"; shift 2 ;;
         --web-port) WEB_PORT="${2:?--web-port требует значение}"; shift 2 ;;
+        --with-telemetry) WITH_TELEMETRY=1; shift ;;
         --uninstall) DO_UNINSTALL=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) die "Неизвестный аргумент: $1 (см. --help)" ;;
@@ -304,6 +307,23 @@ PY
         if [[ "$WEB_HOST" != "127.0.0.1" && "$WEB_HOST" != "localhost" ]]; then
             c_ylw "Токен доступа: $WEB_TOKEN"
         fi
+    fi
+
+    if [[ "$WITH_TELEMETRY" -eq 1 ]]; then
+        "$VENV/bin/python" - "$CONFIG_DIR" <<'PY'
+import sys
+from pathlib import Path
+
+import yaml
+
+path = Path(sys.argv[1]) / "settings.yaml"
+data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+data.setdefault("telemetry", {})["enabled"] = True
+path.write_text(
+    yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding="utf-8"
+)
+PY
+        c_ok "Анонимная статистика включена (выключить: tspu-monitor telemetry disable)"
     fi
 }
 
