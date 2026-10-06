@@ -87,6 +87,5 @@ docs: описать релизный процесс
 ## Релизы
 
 Релизный процесс (версионирование, changelog, теги, артефакты) описан в
-[`.github/REPO_SETUP.md`](.github/REPO_SETUP.md) и
-`DOCS.md` → «Релизы и версионирование». Подготовка релиза
+[`.github/REPO_SETUP.md`](.github/REPO_SETUP.md). Подготовка релиза
 автоматизирована: `scripts/release.sh <версия>`.

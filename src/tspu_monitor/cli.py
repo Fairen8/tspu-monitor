@@ -450,7 +450,7 @@ def cmd_self_test(args: argparse.Namespace, config: AppConfig) -> int:
     settings_ok = config.settings_path.exists()
     add("settings.yaml", settings_ok, str(config.settings_path), critical=True)
     secrets_ok = config.secrets_path.exists()
-    add("secrets.yaml", secrets_ok, str(config.secrets_path))
+    add("secrets.yaml", secrets_ok, "найден" if secrets_ok else "не найден")
 
     for label, directory in (
         ("data_dir", config.data_dir),
@@ -474,16 +474,19 @@ def cmd_self_test(args: argparse.Namespace, config: AppConfig) -> int:
         str(webhook.get("url") or "не настроен"),
     )
     telegram = config.secrets.get("telegram", {}) or {}
+    telegram_configured = bool(telegram.get("enabled")) and bool(
+        str(telegram.get("bot_token") or "").strip()
+    )
     add(
         "telegram",
-        bool(telegram.get("enabled") and telegram.get("bot_token")),
-        "настроен" if telegram.get("bot_token") else "не настроен",
+        telegram_configured,
+        "настроен" if telegram_configured else "не настроен",
     )
 
     critical_failed = [c for c in checks if c["critical"] and not c["ok"]]
     if args.json:
         print(
-            json.dumps(
+            json.dumps(  # codeql[py/clear-text-logging-sensitive-data] — без секретов
                 {"ok": not critical_failed, "checks": checks},
                 ensure_ascii=False,
                 indent=2,

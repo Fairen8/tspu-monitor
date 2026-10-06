@@ -211,6 +211,9 @@ class TlsHandshakeProbe(BaseProbe):
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
+        # Проба намеренно не проверяет сертификат, но не допускает
+        # устаревшие протоколы (TLS 1.0/1.1).
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(self.timeout)
         out: dict[str, Any] = {"ok": False, "error": None}

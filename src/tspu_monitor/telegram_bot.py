@@ -23,6 +23,13 @@ from .logging_setup import get_logger, read_last_lines
 from .reporter import Reporter
 from .utils import truncate
 
+
+def redact_secret(text: str, secret: str | None) -> str:
+    """Убрать секрет (например, токен бота) из текста перед логированием."""
+    if secret and secret in text:
+        return text.replace(secret, "***")
+    return text
+
 HELP_TEXT = (
     "TSPU Monitor — управление\n\n"
     "/status — статус и последний запуск\n"
@@ -97,8 +104,9 @@ class TelegramBot:
             async with self._session.post(url, json=params, timeout=timeout) as resp:
                 return await resp.json()
         except Exception as exc:  # noqa: BLE001
-            self.logger.warning("Telegram API %s: %s", method, exc)
-            return {"ok": False, "description": str(exc)}
+            message = redact_secret(str(exc), self.token)
+            self.logger.warning("Telegram API %s: %s", method, message)
+            return {"ok": False, "description": message}
 
     async def close(self) -> None:
         if self._session is not None and not self._session.closed:
@@ -131,7 +139,7 @@ class TelegramBot:
                 data = await resp.json()
                 return bool(data.get("ok"))
         except Exception as exc:  # noqa: BLE001
-            self.logger.warning("sendDocument: %s", exc)
+            self.logger.warning("sendDocument: %s", redact_secret(str(exc), self.token))
             return False
 
     # ------------------------------------------------------------------
@@ -149,7 +157,7 @@ class TelegramBot:
         self.logger.info(
             "Telegram-бот @%s запущен (прокси: %s)",
             (me.get("result") or {}).get("username"),
-            self.proxy or "нет",
+            "включён" if self.proxy else "не задан",
         )
         try:
             while not stop_event.is_set():

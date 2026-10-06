@@ -27,6 +27,9 @@ updates:
     labels: ["dependencies", "ci"]
     commit-message:
       prefix: "chore(ci)"
+    groups:
+      actions:
+        patterns: ["*"]
 
   # Базовый образ Docker
   - package-ecosystem: "docker"

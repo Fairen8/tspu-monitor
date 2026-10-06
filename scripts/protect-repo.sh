@@ -10,7 +10,9 @@
 #      - обязательный PR и 1 approve;
 #      - обязательные зелёные проверки CI;
 #      - запрет force-push и удаления ветки;
-#      - обязательное разрешение обсуждений.
+#      - обязательное разрешение обсуждений;
+#   4. ставит branch protection на release (только PR из main,
+#      прямые коммиты запрещены, обязательная проверка Source is main).
 #
 # Использование:
 #   bash scripts/protect-repo.sh                 # репозиторий из gh repo view
@@ -50,17 +52,18 @@ gh api -X PATCH "repos/${OWNER}/${NAME}" --input - >/dev/null <<'JSON'
 }
 JSON
 
-info "3/3 Настраиваю branch protection для main"
+info "3/4 Настраиваю branch protection для main"
 gh api -X PUT "repos/${OWNER}/${NAME}/branches/main/protection" --input - >/dev/null <<'JSON'
 {
   "required_status_checks": {
     "strict": true,
     "contexts": [
-      "Python 3.11",
-      "Python 3.12",
-      "Python 3.13",
+      "Lint",
+      "Tests 3.11",
+      "Tests 3.12",
+      "Tests 3.13",
       "Docker build",
-      "Secret scan (gitleaks)",
+      "Secret scan",
       "Анализ Python"
     ]
   },
@@ -77,6 +80,37 @@ gh api -X PUT "repos/${OWNER}/${NAME}/branches/main/protection" --input - >/dev/
   "required_conversation_resolution": true
 }
 JSON
+
+info "4/4 Настраиваю branch protection для release (только PR из main)"
+if gh api "repos/${OWNER}/${NAME}/branches/release" >/dev/null 2>&1; then
+    gh api -X PUT "repos/${OWNER}/${NAME}/branches/release/protection" --input - >/dev/null <<'JSON'
+{
+  "required_status_checks": {
+    "strict": false,
+    "contexts": [
+      "Source is main",
+      "Lint",
+      "Tests 3.11",
+      "Tests 3.12",
+      "Tests 3.13",
+      "Docker build",
+      "Secret scan"
+    ]
+  },
+  "enforce_admins": true,
+  "required_pull_request_reviews": {
+    "dismiss_stale_reviews": true,
+    "required_approving_review_count": 0
+  },
+  "restrictions": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false,
+  "required_conversation_resolution": true
+}
+JSON
+else
+    red "Ветка release не найдена. Создайте её: git push origin main:release"
+fi
 
 grn "Готово. Проверьте настройки: https://github.com/${OWNER}/${NAME}/settings/branches"
 info "Дополнительные шаги (вручную): 2FA для участников, подписанные коммиты,"
