@@ -7,6 +7,16 @@
 
 ## [Unreleased]
 
+### Added
+
+* Универсальный установщик `install.sh` одной командой: автоопределение
+  дистрибутива (Debian/Ubuntu, RHEL/Fedora, Alpine, Arch, openSUSE, macOS),
+  установка зависимостей, venv, CLI и сервиса (systemd/OpenRC); флаги
+  `--with-web`, `--version`, `--no-service`, `--uninstall`.
+* Установщик `install.ps1` для Windows (CLI, конфигурация, дашборд).
+* CI: shellcheck и bash-синтаксис, смоук-тесты установки на чистом
+  Debian 12 и Windows; установщики прикладываются к релизу.
+
 ## [2.1.0] - 2026-10-06
 
 ### Added

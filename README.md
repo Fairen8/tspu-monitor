@@ -58,7 +58,38 @@ JSON и exit-коды; разворачивается в Docker, LXC (Proxmox) �
 
 ## Установка
 
-### Docker (рекомендуется)
+### Одна команда (Linux и macOS)
+
+Скрипт сам определит дистрибутив (Debian/Ubuntu, RHEL/Fedora, Alpine,
+Arch, openSUSE, macOS), поставит зависимости, создаст venv, CLI и сервис:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.sh | sudo bash
+```
+
+Полезные варианты:
+
+```bash
+# конкретная версия
+curl -fsSL .../install.sh | sudo bash -s -- --version v2.1.0
+# сразу с веб-дашбордом (на 127.0.0.1:8787)
+curl -fsSL .../install.sh | sudo bash -s -- --with-web
+# без сервиса (только CLI)
+curl -fsSL .../install.sh | sudo bash -s -- --no-service
+# удаление
+curl -fsSL .../install.sh | sudo bash -s -- --uninstall
+```
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.ps1 | iex
+```
+
+> Сетевые пробы полностью работают на Linux (нужны ping/traceroute/nmap/dig);
+> на Windows доступны CLI, конфигурация, отчёты и веб-дашборд.
+
+### Docker
 
 ```bash
 git clone https://github.com/Fairen8/tspu-monitor.git

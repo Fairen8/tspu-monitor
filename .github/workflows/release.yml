@@ -105,6 +105,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: python-dist
@@ -128,6 +130,8 @@ jobs:
             dist/*.deb
             dist/*.pyz
             dist/SHA256SUMS
+            install.sh
+            install.ps1
 
   # ------------------------------------------------------------------
   # 3. Мультиархитектурный Docker-образ в GHCR

@@ -720,16 +720,47 @@ bash deploy/lxc/proxmox-create.sh 210 tspu-monitor
 net_admin net_bind_service`. Подробности и частые проблемы —
 [`deploy/lxc/README.md`](deploy/lxc/README.md).
 
-### 12.4. Bare-metal / VM
+### 12.4. Универсальный установщик (Linux и macOS)
+
+Одна команда — сам определяет дистрибутив и пакетный менеджер:
 
 ```bash
-sudo bash install.sh
-sudoedit /opt/tspu-monitor/config/secrets.yaml
-tspu-monitor config validate
-systemctl enable --now tspu-monitor
+curl -fsSL https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.sh | sudo bash
 ```
 
-`install.sh` идемпотентен: обновляет код и зависимости, не перезаписывая
+Поддерживаются Debian/Ubuntu, RHEL/CentOS/Rocky/Alma/Fedora, Alpine,
+Arch/Manjaro, openSUSE и macOS (Homebrew). Установщик:
+
+1. ставит системные зависимости (ping, traceroute, nmap, dig, openssl);
+2. находит Python ≥ 3.11, создаёт venv и ставит пакет;
+3. создаёт CLI `/usr/local/bin/tspu-monitor` и сервис
+   (systemd, OpenRC или без сервиса);
+4. создаёт конфиги, не перезаписывая существующие.
+
+| Флаг | Назначение |
+|---|---|
+| `--version REF` | версия (тег `vX.Y.Z`) или `main` |
+| `--prefix DIR` | каталог установки (`/opt/tspu-monitor`) |
+| `--no-deps` | не ставить системные пакеты |
+| `--no-service` | не создавать сервис |
+| `--with-web` | включить веб-дашборд |
+| `--web-host HOST`, `--web-port PORT` | адрес и порт дашборда |
+| `--uninstall` | удалить (данные сохраняются; `TSPU_PURGE=1` — удалить всё) |
+
+Примеры:
+
+```bash
+curl -fsSL .../install.sh | sudo bash -s -- --version v2.1.0 --with-web
+curl -fsSL .../install.sh | sudo bash -s -- --no-service
+```
+
+Windows (PowerShell; сетевые пробы ограничены, CLI/дашборд работают):
+
+```powershell
+irm https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.ps1 | iex
+```
+
+Установщик идемпотентен: обновляет код и зависимости, не перезаписывая
 конфиги и данные.
 
 ### 12.5. systemd
