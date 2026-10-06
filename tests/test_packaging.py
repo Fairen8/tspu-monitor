@@ -128,3 +128,6 @@ def test_copilot_review_setup():
     assert "copilot_code_review" in script
     assert "review_on_push" in script
     assert "rules/branches" not in script
+    # защита main без обязательного PR (прямые пуши участников)
+    assert "branches/main/protection" in script
+    assert '"required_pull_request_reviews": null' in script

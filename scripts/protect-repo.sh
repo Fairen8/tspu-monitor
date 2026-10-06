@@ -3,7 +3,8 @@
 # Настройка защиты репозитория TSPU Monitor (идемпотентно).
 #
 # Итоговая схема:
-#   main    — разработка, классической защиты нет (прямые пуши владельца);
+#   main    — прямые пуши участников с правом записи; обязательный PR не
+#             требуется; force-push и удаление запрещены; внешние — через PR;
 #   release — ruleset: только PR (merge-commit), обязательная проверка
 #             «Source is main» и CI-checks, обязательное ревью Copilot
 #             (review_on_push=false, черновики не ревьюятся), запрет
@@ -55,8 +56,18 @@ gh api -X PATCH "repos/${OWNER}/${NAME}" --input - >/dev/null <<'JSON' || \
 }
 JSON
 
-info "3/6 Снимаю классическую защиту ветки main (разработка)"
-gh api -X DELETE "repos/${OWNER}/${NAME}/branches/main/protection" >/dev/null 2>&1 || true
+info "3/6 Настраиваю main: прямые пуши участников, без обязательного PR"
+gh api -X PUT "repos/${OWNER}/${NAME}/branches/main/protection" --input - >/dev/null <<'JSON' || \
+    warn "Не удалось настроить защиту main"
+{
+  "required_status_checks": null,
+  "enforce_admins": false,
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}
+JSON
 
 info "4/6 Снимаю классическую защиту release (заменяется ruleset)"
 gh api -X DELETE "repos/${OWNER}/${NAME}/branches/release/protection" >/dev/null 2>&1 || true

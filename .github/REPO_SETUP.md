@@ -3,17 +3,23 @@
 Схема веток, защита `release`, сканеры и релизы. Автонастройка —
 [`scripts/protect-repo.sh`](../scripts/protect-repo.sh) (идемпотентна).
 
-> **Статус (2026-10-06):** `main` — без классической защиты (разработка);
-> `release` — ruleset «Release branch: PR from main + Copilot review»;
-> теги `v*` защищены; secret scanning, push protection и Dependabot
-> включены; CI/CodeQL/Scorecard зелёные.
+> **Статус (2026-10-06):** `main` — защита без обязательного PR (прямые
+> пуши участников, force-push/удаление запрещены); `release` — ruleset
+> «Release branch: PR from main + Copilot review»; теги `v*` защищены;
+> secret scanning, push protection и Dependabot включены; CI/CodeQL/Scorecard
+> зелёные.
 
 ## 1. Ветки
 
 | Ветка | Назначение | Правила |
 |---|---|---|
-| `main` | разработка | классической защиты нет — владелец пушит напрямую, CI на каждый push |
+| `main` | разработка | прямые пуши участников с правом записи; обязательный PR не требуется; force-push и удаление запрещены; внешние (без прав) — только через PR (fork) |
 | `release` | релизы | ruleset: только PR (merge-commit), **только из `main`**, обязательно ревью Copilot |
+
+Классическая защита `main` (без обязательного PR) означает: участники
+команды с ролью write/maintain/admin пушат напрямую, а все остальные
+физически не могут пушить и обязаны идти через pull request; CI при этом
+запускается на каждый push и виден в Actions.
 
 ## 2. Защита `release` (ruleset)
 
@@ -52,10 +58,11 @@ Ruleset «Release branch: PR from main + Copilot review»:
 bash scripts/protect-repo.sh Fairen8/tspu-monitor
 ```
 
-Скрипт: Dependabot alerts → secret scanning/push protection → снимает
-защиту `main` и классическую защиту `release` → создаёт/обновляет ruleset
-release (с Copilot-ревью) → удаляет авто-Copilot ruleset для main →
-создаёт ruleset тегов `v*`.
+Скрипт: Dependabot alerts → secret scanning/push protection → ставит
+защиту `main` (прямые пуши участников, без обязательного PR) → снимает
+классическую защиту `release` → создаёт/обновляет ruleset release
+(с Copilot-ревью) → удаляет авто-Copilot ruleset для main → создаёт
+ruleset тегов `v*`.
 
 ## 4. Безопасность
 
@@ -97,7 +104,8 @@ SHA256SUMS) и мультиархитектурный образ. Повторн
 - [x] Secret scanning + push protection (0 алертов)
 - [x] CodeQL (v4), Dependency review, Scorecard
 - [x] gitleaks в CI + pre-commit
-- [x] `main` без защиты (прямые пуши владельца), CI на каждый push
+- [x] `main` — защита без обязательного PR: прямые пуши участников,
+  запрет force-push и удаления; внешние — только через PR
 - [x] `release` — ruleset: PR из `main` + обязательное ревью Copilot
 - [x] Авто-ruleset Copilot для main удалён (экономия токенов)
 - [x] Теги `v*` защищены
