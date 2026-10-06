@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-06
+
 ### Added
 
 * Веб-дашборд и REST API (`tspu-monitor web`, `daemon --web`): сводка,
@@ -86,5 +88,6 @@
 * Webhook-авторизация через Bearer-токен.
 * Whitelist Telegram-пользователей и логирование неавторизованных попыток.
 
-[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.0
 [2.0.0]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.0.0
