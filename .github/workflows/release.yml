@@ -6,7 +6,7 @@ on:
   workflow_call:
     inputs:
       tag:
-        description: "Тег релиза (vX.Y.Z)"
+        description: "Тег релиза (vX.Y.Z, допускается суффикс -rc.1)"
         required: true
         type: string
 
@@ -19,11 +19,15 @@ env:
 
 jobs:
   # ------------------------------------------------------------------
-  # 1. Python-артефакты: sdist + wheel + контрольные суммы
+  # 1. Python-артефакты и заметки из CHANGELOG
   # ------------------------------------------------------------------
   build-python:
     name: "Python packages"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v7
 
@@ -32,11 +36,27 @@ jobs:
           python-version: "3.11"
           cache: pip
 
+      - name: Версия и тип релиза
+        id: version
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+          case "$VERSION" in
+            *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
+            *)   echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
       - name: Сборка sdist и wheel
         run: |
           python -m pip install --upgrade pip build
           python -m build
           cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS
+
+      - name: Заметки из CHANGELOG
+        run: |
+          python scripts/changelog_section.py "${{ steps.version.outputs.value }}" \
+            --output release-notes.md \
+            --fallback "История изменений — в CHANGELOG.md."
 
       - name: Артефакты
         uses: actions/upload-artifact@v7
@@ -45,61 +65,82 @@ jobs:
           path: dist/*
           retention-days: 30
 
+      - name: Заметки (артефакт)
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-notes
+          path: release-notes.md
+          retention-days: 30
+
+      - name: Сводка
+        run: |
+          {
+            echo "### Релиз ${RELEASE_TAG}"
+            echo ""
+            echo "- Версия: \`${{ steps.version.outputs.value }}\`"
+            echo "- Pre-release: ${{ steps.version.outputs.prerelease }}"
+            echo "- Артефакты: wheel, sdist, SHA256SUMS"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # ------------------------------------------------------------------
-  # 2. GitHub Release с вложениями
+  # 2. GitHub Release с вложениями и телом из CHANGELOG
   # ------------------------------------------------------------------
   github-release:
     name: "GitHub Release"
     needs: build-python
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/download-artifact@v8
         with:
           name: python-dist
           path: dist
 
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-notes
+          path: .
+
       - name: Публикация релиза
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           name: ${{ env.RELEASE_TAG }}
-          generate_release_notes: true
+          body_path: release-notes.md
+          prerelease: ${{ needs.build-python.outputs.prerelease == 'true' }}
           files: |
             dist/*.whl
             dist/*.tar.gz
             dist/SHA256SUMS
-          body: |
-            Артефакты: wheel и sdist, контрольные суммы — SHA256SUMS.
-            Docker-образ: `ghcr.io/fairen8/tspu-monitor:${{ env.RELEASE_TAG }}`.
-            История изменений: CHANGELOG.md.
 
   # ------------------------------------------------------------------
-  # 3. Docker-образ в GHCR
+  # 3. Мультиархитектурный Docker-образ в GHCR
   # ------------------------------------------------------------------
   publish-image:
     name: "Docker image (GHCR)"
+    needs: build-python
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
 
-      - name: Определить версии
-        id: version
+      - name: Теги образа
+        id: tags
         run: |
-          VERSION="${RELEASE_TAG#v}"
+          VERSION="${{ needs.build-python.outputs.version }}"
           MAJOR_MINOR="$(echo "$VERSION" | cut -d. -f1-2)"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "major_minor=$MAJOR_MINOR" >> "$GITHUB_OUTPUT"
+          IMAGE="ghcr.io/${{ github.repository }}"
+          {
+            echo "tags<<EOF"
+            echo "${IMAGE}:${VERSION}"
+            if [[ "$VERSION" != *-* ]]; then
+              echo "${IMAGE}:${MAJOR_MINOR}"
+              echo "${IMAGE}:latest"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Метаданные образа
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=raw,value=${{ steps.version.outputs.version }}
-            type=raw,value=${{ steps.version.outputs.major_minor }}
-            type=raw,value=latest
-
+      - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
 
       - name: Вход в GHCR
@@ -113,6 +154,21 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          sbom: true
+          provenance: true
+
+      - name: Сводка
+        run: |
+          {
+            echo "### Docker-образ"
+            echo ""
+            echo "Платформы: \`linux/amd64\`, \`linux/arm64\`"
+            echo ""
+            echo "Теги:"
+            echo '${{ steps.tags.outputs.tags }}' | sed 's/^/- `/;s/$/`/'
+          } >> "$GITHUB_STEP_SUMMARY"

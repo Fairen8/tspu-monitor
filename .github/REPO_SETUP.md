@@ -44,7 +44,7 @@ bash scripts/protect-repo.sh Fairen8/tspu-monitor
 | Обязательный Pull Request | да, 1 approve |
 | Review от CODEOWNERS | да |
 | Устаревшие approve сбрасываются | да |
-| Обязательные status checks | `Python 3.11/3.12/3.13`, `Docker build`, `Secret scan (gitleaks)`, `Анализ Python` |
+| Обязательные status checks | `Lint`, `Tests 3.11/3.12/3.13`, `Docker build`, `Secret scan`, `Анализ Python` |
 | Актуальная ветка (strict) | да |
 | Линейная история | да |
 | Разрешение обсуждений | да |
@@ -66,7 +66,7 @@ bash scripts/protect-repo.sh Fairen8/tspu-monitor
 | Настройка | Значение |
 |---|---|
 | Источник PR | **только `main`** (проверка `Source is main`) |
-| Обязательные status checks | `Source is main`, `Python 3.11/3.12/3.13`, `Docker build`, `Secret scan (gitleaks)` |
+| Обязательные status checks | `Source is main`, `Lint`, `Tests 3.11/3.12/3.13`, `Docker build`, `Secret scan` |
 | Прямые коммиты | запрещены (PR обязателен, `enforce_admins: true`) |
 | Force-push / удаление | запрещено |
 | Требование approve | без обязательных approve (владелец может вливать PR после зелёных проверок) |
@@ -147,6 +147,15 @@ bash scripts/release.sh 2.1.0 --dry-run  # проверки без измене�
 После мержа PR workflow **Publish release** создаёт тег `vX.Y.Z`,
 GitHub Release (`wheel`/`sdist`/`SHA256SUMS`) и Docker-образ. Повторная
 публикация той же версии пропускается.
+
+Особенности:
+
+* образы собираются под `linux/amd64` и `linux/arm64`, с SBOM и
+  provenance-аттестациями;
+* версия с суффиксом (`v2.1.0-rc.1`) публикуется как **pre-release** и не
+  обновляет теги `X.Y`/`latest`;
+* тело GitHub Release формируется из раздела `CHANGELOG.md`
+  (`scripts/changelog_section.py`).
 
 Ручная альтернатива (без ветки release): поставить тег напрямую —
 workflow **Release** соберёт артефакты по тегу:

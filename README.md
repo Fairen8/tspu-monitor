@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/Fairen8/tspu-monitor/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Fairen8/tspu-monitor/actions/workflows/ci.yml)
 [![Release](https://github.com/Fairen8/tspu-monitor/actions/workflows/release.yml/badge.svg)](https://github.com/Fairen8/tspu-monitor/releases)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/Fairen8/tspu-monitor/pkgs/container/tspu-monitor)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 

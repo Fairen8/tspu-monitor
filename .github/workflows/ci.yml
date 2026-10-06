@@ -9,10 +9,33 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
-    name: "Python ${{ matrix.python-version }}"
+  lint:
+    name: "Lint"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Установка
+        run: pip install -e ".[dev]"
+
+      - name: Проверка стиля (ruff)
+        run: ruff check src tests scripts
+
+  tests:
+    name: "Tests ${{ matrix.python-version }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -26,32 +49,58 @@ jobs:
           cache: pip
 
       - name: Установка
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+        run: pip install -e ".[dev]"
 
-      - name: Линтер (ruff)
-        run: ruff check src tests
+      - name: Тесты
+        run: pytest -q --junitxml=test-results.xml
 
-      - name: Тесты (pytest)
-        run: pytest -q
+      - name: Сводка результатов
+        if: always()
+        run: python scripts/pytest_summary.py test-results.xml >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Артефакт результатов
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-${{ matrix.python-version }}
+          path: test-results.xml
+          retention-days: 7
 
   docker:
     name: "Docker build"
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
 
-      - name: Сборка образа
-        run: docker build -t tspu-monitor:ci .
+      - uses: docker/setup-buildx-action@v4
 
-      - name: Smoke-тест образа
+      - name: Сборка образа
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: tspu-monitor:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke-тест
         run: docker run --rm tspu-monitor:ci version
 
+      - name: Сводка
+        run: |
+          SIZE="$(docker image inspect tspu-monitor:ci --format '{{.Size}}' | awk '{printf "%.0f", $1/1024/1024}')"
+          {
+            echo "### Docker-образ"
+            echo ""
+            echo "- Размер: ${SIZE} МБ"
+            echo "- Smoke-тест \`tspu-monitor version\`: OK"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   secret-scan:
-    name: "Secret scan (gitleaks)"
+    name: "Secret scan"
     runs-on: ubuntu-latest
-    # Нужен pull-requests: read для анализа pull request событий.
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read

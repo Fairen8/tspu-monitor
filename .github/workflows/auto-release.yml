@@ -19,6 +19,7 @@ jobs:
   prepare:
     name: "Проверка версии"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       exists: ${{ steps.tagcheck.outputs.exists }}

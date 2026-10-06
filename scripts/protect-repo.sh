@@ -58,11 +58,12 @@ gh api -X PUT "repos/${OWNER}/${NAME}/branches/main/protection" --input - >/dev/
   "required_status_checks": {
     "strict": true,
     "contexts": [
-      "Python 3.11",
-      "Python 3.12",
-      "Python 3.13",
+      "Lint",
+      "Tests 3.11",
+      "Tests 3.12",
+      "Tests 3.13",
       "Docker build",
-      "Secret scan (gitleaks)",
+      "Secret scan",
       "Анализ Python"
     ]
   },
@@ -88,11 +89,12 @@ if gh api "repos/${OWNER}/${NAME}/branches/release" >/dev/null 2>&1; then
     "strict": false,
     "contexts": [
       "Source is main",
-      "Python 3.11",
-      "Python 3.12",
-      "Python 3.13",
+      "Lint",
+      "Tests 3.11",
+      "Tests 3.12",
+      "Tests 3.13",
       "Docker build",
-      "Secret scan (gitleaks)"
+      "Secret scan"
     ]
   },
   "enforce_admins": true,
