@@ -17,6 +17,8 @@ fi
 
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
+mkdir -p "$OUTDIR"
+OUTDIR="$(cd "$OUTDIR" && pwd)"
 
 PKG="$STAGE/tspu-monitor"
 mkdir -p "$PKG/opt/tspu-monitor" \
