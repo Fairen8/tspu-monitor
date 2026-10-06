@@ -1,0 +1,34 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: "Анализ Python"
+    # CodeQL для приватных репозиториев требует GitHub Advanced Security.
+    # Включите переменную репозитория ENABLE_CODEQL=true, когда GHAS доступен;
+    # в публичном репозитории job запускается всегда.
+    if: ${{ !github.event.repository.private || vars.ENABLE_CODEQL == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Инициализация CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+
+      - name: Анализ
+        uses: github/codeql-action/analyze@v3

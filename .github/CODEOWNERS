@@ -1,0 +1,9 @@
+# Владелец репозитория: обязательный review его изменений.
+* @Fairen8
+
+# Критичные зоны требуют особого внимания.
+/.github/workflows/ @Fairen8
+/src/tspu_monitor/classification.py @Fairen8
+/src/tspu_monitor/telegram_bot.py @Fairen8
+/Dockerfile @Fairen8
+/install.sh @Fairen8

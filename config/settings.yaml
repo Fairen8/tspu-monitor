@@ -1,0 +1,78 @@
+# =====================================================================
+# TSPU Monitor 2 — общие настройки
+# =====================================================================
+# Шаблон. На сервере правьте копию:
+#   sudoedit /etc/tspu-monitor/settings.yaml      (Docker)
+#   sudoedit /opt/tspu-monitor/config/settings.yaml  (LXC/bare-metal)
+# или через CLI:
+#   tspu-monitor config set scheduler.check_interval_minutes 30
+# =====================================================================
+
+general:
+  language: ru
+  log_level: INFO            # DEBUG / INFO / WARNING / ERROR
+  color: auto                # auto / always / never
+  data_dir: /var/lib/tspu-monitor/data
+  reports_dir: /var/lib/tspu-monitor/reports
+  log_dir: /var/log/tspu-monitor
+
+scheduler:
+  check_interval_minutes: 60 # период автоматических проверок
+  startup_delay_seconds: 15  # первая проверка после старта демона
+  report_interval_hours: 168 # окно отчёта (7 дней)
+  report_day: monday         # день недели отчёта
+  report_time: "09:00"       # время отчёта, UTC
+
+scenarios:
+  enabled:
+    - web
+    - dns
+    - quic
+    - wireguard
+    - amnezia
+    - openvpn
+    - shadowsocks
+    - xray
+  options: {}
+    # Примеры переопределения параметров сценария:
+    # wireguard:
+    #   port: 51820
+    #   alt_ports: [443, 1194, 53]
+    # web:
+    #   samples: 3
+
+testing:
+  control_hosts:             # заведомо доступные ресурсы (контроль)
+    - ya.ru
+    - google.com
+  blocked_test_hosts:        # реестровые ресурсы для проверки фильтрации
+    - twitter.com
+    - facebook.com
+  dns_resolvers:             # публичные резолверы для сравнения
+    - 1.1.1.1
+    - 8.8.8.8
+    - 77.88.8.8
+  ports_tcp: [80, 443, 8080, 8443, 22]
+  ports_udp: [53, 443, 51820, 1194]
+  timeout_seconds: 10        # таймаут одной пробы
+  ping_count: 5              # пакетов на ICMP-пробу
+  max_ttl: 30                # максимальный TTL для traceroute
+  samples: 2                 # повторов для оценки обрывов
+
+classification:
+  level_thresholds:          # score -> уровень блокировки
+    medium: 25
+    high: 50
+    full: 70
+  throttle_min_kbps: 256     # порог скорости для детекта шейпинга
+
+webhook:
+  enabled: false
+  url: ""                    # например: https://n8n.example.com/webhook/tspu
+  min_level: medium          # low / medium / high / full
+  timeout_seconds: 10
+  headers: {}
+
+reports:
+  include_logs: true
+  max_log_lines: 500

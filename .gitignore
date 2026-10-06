@@ -1,0 +1,32 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.venv/
+env/
+data/
+logs/
+reports/
+*.log
+*.egg-info/
+build/
+dist/
+.DS_Store
+.idea/
+.vscode/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+test-results.xml
+
+# Локальные секреты
+config/secrets.local.yaml
+.env
+
+# Временные артефакты
+*.pdf
+*.docx
+.abacus.donotdelete

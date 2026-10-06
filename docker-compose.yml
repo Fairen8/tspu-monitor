@@ -1,0 +1,41 @@
+# =====================================================================
+# TSPU Monitor 2 — Docker Compose
+#
+# Быстрый старт:
+#   1. Отредактируйте config/secrets.yaml (цели, Telegram).
+#   2. docker compose up -d --build
+#   3. docker compose exec tspu-monitor tspu-monitor check
+# =====================================================================
+services:
+  tspu-monitor:
+    build: .
+    image: tspu-monitor:2.0.0
+    container_name: tspu-monitor
+    restart: unless-stopped
+
+    # CAP_NET_RAW/CAP_NET_ADMIN нужны для raw-проб (scapy TTL/IP-ID).
+    # Без них основные пробы работают, raw-пробы пропускаются.
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+
+    environment:
+      TSPU_CONFIG_DIR: /etc/tspu-monitor
+      TSPU_LOG_DIR: /var/log/tspu-monitor
+
+    volumes:
+      - ./config:/etc/tspu-monitor
+      - tspu-data:/var/lib/tspu-monitor
+      - tspu-logs:/var/log/tspu-monitor
+      # Свои сценарии (файлы *.py без ведущего подчёркивания):
+      # - ./custom-scenarios:/opt/tspu-monitor/src/tspu_monitor/scenarios/custom
+
+    # Для проб внутренних серверов, доступных только через VPN-интерфейс
+    # хоста, раскомментируйте:
+    # network_mode: host
+
+    command: ["daemon"]
+
+volumes:
+  tspu-data:
+  tspu-logs:

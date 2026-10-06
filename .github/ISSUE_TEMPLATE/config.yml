@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Сообщить об уязвимости (приватно)
+    url: https://github.com/Fairen8/tspu-monitor/security/advisories/new
+    about: Не создавайте публичный issue — используйте Private Vulnerability Reporting.
+  - name: Документация
+    url: https://github.com/Fairen8/tspu-monitor/blob/main/DOCS.md
+    about: Архитектура, CLI, конфигурация, автоматизация, troubleshooting.

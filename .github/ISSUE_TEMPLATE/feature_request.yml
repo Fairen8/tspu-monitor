@@ -1,0 +1,45 @@
+name: Предложение
+description: Новая проба, сценарий, тип блокировки или улучшение
+labels: ["enhancement", "triage"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Область
+      options:
+        - Проба (probes)
+        - Сценарий (scenarios)
+        - Классификация (типы/уровни/причины)
+        - CLI
+        - Отчёты/уведомления
+        - Развёртывание (Docker/LXC)
+        - Документация
+        - Другое
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Проблема
+      description: Что сейчас неудобно или не покрыто
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Предлагаемое решение
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Альтернативы
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Подтверждения
+      options:
+        - label: Проверил(а), что похожего предложения ещё нет
+          required: true

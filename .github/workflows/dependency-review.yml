@@ -1,0 +1,23 @@
+name: Dependency review
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    name: "Проверка зависимостей"
+    # Dependency Review для приватных репозиториев требует GitHub Advanced Security.
+    # Включите переменную репозитория ENABLE_DEPENDENCY_REVIEW=true при наличии GHAS.
+    if: ${{ !github.event.repository.private || vars.ENABLE_DEPENDENCY_REVIEW == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure

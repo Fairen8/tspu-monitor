@@ -1,0 +1,30 @@
+# Локальные проверки перед коммитом (pre-commit).
+#
+# Установка:
+#   pip install pre-commit
+#   pre-commit install
+#   pre-commit install --hook-type pre-push
+#
+# Хуки используют уже установленные инструменты (ruff, gitleaks),
+# поэтому версии не пинятся здесь.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff (lint + autofix)
+        entry: ruff check --fix
+        language: system
+        types: [python]
+        require_serial: true
+
+      - id: ruff-format
+        name: ruff (format)
+        entry: ruff format
+        language: system
+        types: [python]
+
+      - id: gitleaks
+        name: gitleaks (secrets)
+        entry: gitleaks git --pre-commit --staged --redact
+        language: system
+        pass_filenames: false

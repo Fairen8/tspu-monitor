@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tspu-monitor"
+version = "2.0.0"
+description = "Консольная диагностика DPI/TSPU: уровень и типы блокировок, обрывы, причины"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Fairen8" }]
+keywords = [
+    "tspu",
+    "dpi",
+    "censorship",
+    "vpn",
+    "wireguard",
+    "openvpn",
+    "network",
+    "monitoring",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: System Administrators",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Networking :: Monitoring",
+]
+dependencies = [
+    "PyYAML>=6.0",
+    "aiohttp>=3.9",
+]
+
+[project.optional-dependencies]
+raw = ["scapy>=2.5"]
+socks = ["aiohttp-socks>=0.8"]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+tspu-monitor = "tspu_monitor.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Fairen8/tspu-monitor"
+Documentation = "https://github.com/Fairen8/tspu-monitor/blob/main/DOCS.md"
+Changelog = "https://github.com/Fairen8/tspu-monitor/blob/main/CHANGELOG.md"
+Security = "https://github.com/Fairen8/tspu-monitor/security/policy"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+tspu_monitor = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra --strict-markers -m 'not network'"
+markers = [
+    "network: тесты, требующие реального сетевого доступа (по умолчанию пропускаются)",
+    "integration: локальные интеграционные тесты проб на мок-серверах (без интернета)",
+]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E203", "SIM105", "UP042"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
