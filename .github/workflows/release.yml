@@ -9,6 +9,12 @@ on:
         description: "Тег релиза (vX.Y.Z, допускается суффикс -rc.1)"
         required: true
         type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Тег существующего релиза (vX.Y.Z) — пересборка артефактов"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -139,7 +145,7 @@ jobs:
         run: |
           VERSION="${{ needs.build-python.outputs.version }}"
           MAJOR_MINOR="$(echo "$VERSION" | cut -d. -f1-2)"
-          IMAGE="ghcr.io/${{ github.repository }}"
+          IMAGE="$(echo "ghcr.io/${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
           {
             echo "tags<<EOF"
             echo "${IMAGE}:${VERSION}"
