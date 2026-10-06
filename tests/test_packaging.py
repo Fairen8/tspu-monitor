@@ -50,8 +50,40 @@ def test_ci_workflows_present():
     for name in (
         "ci.yml",
         "release.yml",
+        "auto-release.yml",
+        "release-guard.yml",
         "codeql.yml",
         "dependency-review.yml",
         "scorecard.yml",
     ):
         assert (workflows / name).exists(), f"нет workflow {name}"
+
+
+def test_release_workflow_is_reusable():
+    text = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    assert "workflow_call" in text
+    assert "RELEASE_TAG" in text
+
+
+def test_auto_release_watches_release_branch():
+    text = (ROOT / ".github" / "workflows" / "auto-release.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "branches: [release]" in text
+    assert "release.yml" in text
+
+
+def test_release_guard_requires_main():
+    text = (ROOT / ".github" / "workflows" / "release-guard.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "branches: [release]" in text
+    assert "Source is main" in text
+
+
+def test_release_script_present():
+    script = ROOT / "scripts" / "release.sh"
+    assert script.exists()
+    content = script.read_text(encoding="utf-8")
+    assert "release" in content
+    assert "gh pr create" in content

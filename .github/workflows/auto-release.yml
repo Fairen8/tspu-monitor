@@ -1,0 +1,58 @@
+name: Publish release
+
+# Автоматическая публикация релиза после мержа PR main -> release.
+# Версия берётся из pyproject.toml; если тег уже существует, шаг пропускается.
+on:
+  push:
+    branches: [release]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: "Проверка версии"
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      exists: ${{ steps.tagcheck.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Версия из pyproject.toml
+        id: version
+        run: |
+          VERSION="$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Версия: v${VERSION}"
+
+      - name: Проверка существования тега
+        id: tagcheck
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          if git tag --list "$TAG" | grep -q . || git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Тег $TAG уже существует — публикация не требуется."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Тег $TAG отсутствует — будет создан."
+          fi
+
+  release:
+    name: "Публикация ${{ needs.prepare.outputs.tag }}"
+    needs: prepare
+    if: needs.prepare.outputs.exists == 'false'
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.prepare.outputs.tag }}
+    permissions:
+      contents: write
+      packages: write

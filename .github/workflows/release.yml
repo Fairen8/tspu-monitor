@@ -3,10 +3,19 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_call:
+    inputs:
+      tag:
+        description: "Тег релиза (vX.Y.Z)"
+        required: true
+        type: string
 
 permissions:
   contents: write
   packages: write
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   # ------------------------------------------------------------------
@@ -52,15 +61,17 @@ jobs:
       - name: Публикация релиза
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
           generate_release_notes: true
           files: |
             dist/*.whl
             dist/*.tar.gz
             dist/SHA256SUMS
           body: |
-            Артефакты: wheel и sdist во вложениях, контрольные суммы — SHA256SUMS.
-            Docker-образ: `ghcr.io/fairen8/tspu-monitor:${{ github.ref_name }}`.
-            Изменения: см. CHANGELOG.md.
+            Артефакты: wheel и sdist, контрольные суммы — SHA256SUMS.
+            Docker-образ: `ghcr.io/fairen8/tspu-monitor:${{ env.RELEASE_TAG }}`.
+            История изменений: CHANGELOG.md.
 
   # ------------------------------------------------------------------
   # 3. Docker-образ в GHCR
@@ -71,14 +82,22 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Определить версии
+        id: version
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          MAJOR_MINOR="$(echo "$VERSION" | cut -d. -f1-2)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "major_minor=$MAJOR_MINOR" >> "$GITHUB_OUTPUT"
+
       - name: Метаданные образа
         id: meta
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ steps.version.outputs.version }}
+            type=raw,value=${{ steps.version.outputs.major_minor }}
             type=raw,value=latest
 
       - uses: docker/setup-buildx-action@v4

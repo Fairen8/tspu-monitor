@@ -852,16 +852,18 @@ Bot API.
 
 ## 16. Релизы и версионирование
 
-Версия хранится в двух местах и проверяется тестом
-`tests/test_packaging.py`:
+### 16.1. Ветки
 
-* `pyproject.toml` → `project.version`;
-* `src/tspu_monitor/__init__.py` → `__version__`.
+| Ветка | Назначение | Защита |
+|---|---|---|
+| `main` | разработка, все изменения | PR + review + обязательные CI-проверки |
+| `release` | стабильные релизы | только PR из `main`; прямые коммиты и force-push запрещены |
 
-История изменений — [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog,
-SemVer). Версия указывается в `tspu-monitor version` и во всех отчётах/JSON.
+Ветка `release` полностью защищена: любые коммиты запрещены, изменения
+попадают только через PR, причём **источником может быть только `main`**
+(обязательная проверка `Source is main` из workflow `release-guard.yml`).
 
-### Порядок выпуска
+### 16.2. Порядок выпуска
 
 1. Опишите изменения в `CHANGELOG.md` (перенесите из `Unreleased` в
    раздел `## [X.Y.Z] - ГГГГ-ММ-ДД`).
@@ -872,13 +874,17 @@ SemVer). Версия указывается в `tspu-monitor version` и во �
    bash scripts/release.sh 2.1.0             # боевой прогон
    ```
 
-   Скрипт: обновляет версии, прогоняет `ruff` и `pytest`, делает коммит
-   `chore(release): vX.Y.Z`, ставит аннотированный тег и отправляет в
-   `origin` (`git push --follow-tags`).
-3. Тег `v*` запускает workflow **Release**, который собирает артефакты
-   и публикует их.
+   Скрипт: обновляет версии, прогоняет `ruff` и `pytest`, коммитит в
+   `main`, пушит и открывает PR `main → release`, включая auto-merge.
+3. После мержа PR срабатывает workflow **Publish release**
+   (`auto-release.yml`): читает версию из `pyproject.toml`, проверяет
+   отсутствие тега, создаёт тег `vX.Y.Z`, GitHub Release с артефактами и
+   Docker-образ. Если тег уже существует, публикация пропускается
+   (идемпотентно).
+4. Ручная альтернатива: поставить тег напрямую (`git tag -a vX.Y.Z`) —
+   workflow **Release** соберёт артефакты по тегу.
 
-### Артефакты релиза
+### 16.3. Артефакты релиза
 
 | Артефакт | Куда попадает |
 |---|---|
@@ -888,11 +894,20 @@ SemVer). Версия указывается в `tspu-monitor version` и во �
 | Docker-образ | `ghcr.io/fairen8/tspu-monitor:{X.Y.Z, X.Y, latest}` |
 | Release notes | генерируются автоматически + ссылка на CHANGELOG |
 
-### Версионирование
+### 16.4. Версионирование
 
 * **MAJOR** — несовместимые изменения CLI/конфигурации/JSON.
 * **MINOR** — новые пробы, сценарии, типы блокировок, команды.
 * **PATCH** — исправления без изменения интерфейсов.
+
+Версия хранится в двух местах и проверяется тестом
+`tests/test_packaging.py`:
+
+* `pyproject.toml` → `project.version`;
+* `src/tspu_monitor/__init__.py` → `__version__`.
+
+История изменений — [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog,
+SemVer). Версия указывается в `tspu-monitor version` и во всех отчётах/JSON.
 
 Защита репозитория, обязательные проверки CI и включение сканеров
 описаны в [.github/REPO_SETUP.md](.github/REPO_SETUP.md).

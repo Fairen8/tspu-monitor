@@ -57,6 +57,25 @@ bash scripts/protect-repo.sh Fairen8/tspu-monitor
 * **Require signed commits** (подписанные коммиты);
 * защита тегов `v*` (Settings → Tags → Add rule: запрет удаления/перезаписи).
 
+## 2.1. Защита ветки `release`
+
+Ветка `release` — единственный источник релизов. Настройки:
+
+| Настройка | Значение |
+|---|---|
+| Источник PR | **только `main`** (проверка `Source is main`) |
+| Обязательные status checks | `Source is main`, `Python 3.11/3.12/3.13`, `Docker build`, `Secret scan (gitleaks)` |
+| Прямые коммиты | запрещены (PR обязателен, `enforce_admins: true`) |
+| Force-push / удаление | запрещено |
+| Требование approve | без обязательных approve (владелец может вливать PR после зелёных проверок) |
+
+Проверка `Source is main` реализована workflow `release-guard.yml`:
+любой PR в `release` из ветки, отличной от `main`, падает.
+
+После мержа PR срабатывает `auto-release.yml`: версия берётся из
+`pyproject.toml`, создаётся тег `vX.Y.Z`, GitHub Release и Docker-образ.
+Если тег уже есть — публикация пропускается.
+
 ## 3. Безопасность
 
 | Функция | Как включить | Статус после публикации |
@@ -114,15 +133,21 @@ docker run --rm ghcr.io/fairen8/tspu-monitor:latest version
 ## 6. Релизы
 
 Версионирование — [SemVer](https://semver.org/lang/ru/); изменения — в
-`CHANGELOG.md`.
+`CHANGELOG.md`. Ветка `release` — единственный источник релизов.
 
 ```bash
 bash scripts/release.sh 2.1.0            # боевой прогон
 bash scripts/release.sh 2.1.0 --dry-run  # проверки без изменений
 ```
 
-Тег `v*` запускает **Release**: `wheel`/`sdist`/`SHA256SUMS` в GitHub
-Release и Docker-образ в GHCR. Ручная альтернатива:
+Скрипт выполняет: проверку CHANGELOG и тега, обновление версии, `ruff` +
+`pytest`, коммит в `main`, push, PR `main → release` и auto-merge.
+После мержа PR workflow **Publish release** создаёт тег `vX.Y.Z`,
+GitHub Release (`wheel`/`sdist`/`SHA256SUMS`) и Docker-образ. Повторная
+публикация той же версии пропускается.
+
+Ручная альтернатива (без ветки release): поставить тег напрямую —
+workflow **Release** соберёт артефакты по тегу:
 
 ```bash
 git tag -a v2.0.1 -m "TSPU Monitor v2.0.1"
@@ -134,7 +159,10 @@ git push origin v2.0.1
 - [x] Репозиторий публичный, есть описание и topics
 - [x] Dependabot alerts + security updates
 - [x] gitleaks в CI + pre-commit (работает и на PR)
-- [x] Branch protection: PR + 1 approve + CODEOWNERS + обязательные checks
+- [x] Branch protection `main`: PR + 1 approve + CODEOWNERS + обязательные checks
+- [x] Branch protection `release`: только PR из `main`, прямые коммиты запрещены
+- [x] Ветка `release` создана, проверка `Source is main` обязательна
+- [x] Автопубликация релиза после мержа в `release` (`Publish release`)
 - [x] Secret scanning + push protection (0 алертов)
 - [x] CodeQL (v4) и Dependency review настроены
 - [x] OpenSSF Scorecard еженедельно

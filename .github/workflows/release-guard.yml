@@ -1,0 +1,23 @@
+name: Release guard
+
+# В ветку release можно вливать только из main.
+# Проверка «Source is main» обязательна в branch protection ветки release.
+on:
+  pull_request:
+    branches: [release]
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    name: "Source is main"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Проверка источника PR
+        run: |
+          if [ "${{ github.head_ref }}" != "main" ]; then
+            echo "::error::В ветку release можно вливать только main (источник: ${{ github.head_ref }})"
+            exit 1
+          fi
+          echo "Источник PR: main — допустимо."

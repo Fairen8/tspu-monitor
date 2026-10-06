@@ -171,15 +171,23 @@ Telegram**; сетевые пробы всегда идут напрямую. В
 
 ## Релизы
 
-Версионирование — SemVer. Релиз готовится одной командой:
+Две защищённые ветки:
+
+* `main` — разработка (изменения только через PR);
+* `release` — стабильные релизы: **только PR из `main`**, прямые коммиты
+  и force-push запрещены (обязательная проверка `Source is main`).
+
+Подготовка релиза одной командой:
 
 ```bash
 bash scripts/release.sh 2.1.0
 ```
 
-Тег `v*` запускает workflow **Release**: собираются `wheel`/`sdist` с
-контрольными суммами, создаётся GitHub Release, публикуется Docker-образ
-`ghcr.io/fairen8/tspu-monitor`. Подробности — в
+Скрипт обновит версию, прогонит тесты, запушит `main` и откроет PR
+`main → release`. После мержа workflow **Publish release** автоматически
+создаст тег `vX.Y.Z`, GitHub Release (`wheel`/`sdist`/`SHA256SUMS`) и
+Docker-образ `ghcr.io/fairen8/tspu-monitor`. Подробности — в
+[DOCS.md](DOCS.md#16-релизы-и-версионирование) и
 [.github/REPO_SETUP.md](.github/REPO_SETUP.md).
 
 ## Сообщество и участие
