@@ -30,6 +30,10 @@ services:
       # Свои сценарии (файлы *.py без ведущего подчёркивания):
       # - ./custom-scenarios:/opt/tspu-monitor/src/tspu_monitor/scenarios/custom
 
+    # Веб-дашборд: включите при необходимости (и web.enabled: true в settings).
+    # ports:
+    #   - "127.0.0.1:8787:8787"
+
     # Для проб внутренних серверов, доступных только через VPN-интерфейс
     # хоста, раскомментируйте:
     # network_mode: host

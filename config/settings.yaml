@@ -66,6 +66,12 @@ classification:
     full: 70
   throttle_min_kbps: 256     # порог скорости для детекта шейпинга
 
+web:
+  enabled: false             # запускать дашборд вместе с демоном
+  host: 127.0.0.1            # не-loopback адрес требует токен
+  port: 8787
+  refresh_seconds: 30        # автообновление дашборда
+
 webhook:
   enabled: false
   url: ""                    # например: https://n8n.example.com/webhook/tspu

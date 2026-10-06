@@ -7,6 +7,36 @@
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-06
+
+### Added
+
+* Веб-дашборд и REST API (`tspu-monitor web`, `daemon --web`): сводка,
+  история уровня, сценарии с пробами, запуск проверки, метрики Prometheus.
+* Артефакты релиза: `.deb`-пакет (`scripts/build-deb.sh`) и переносимый
+  zipapp (`scripts/build-archive.sh`) вместе с wheel/sdist.
+* Скрипты `scripts/changelog_section.py` (заметки релиза из CHANGELOG) и
+  `scripts/pytest_summary.py` (markdown-сводка тестов), покрытые тестами.
+* Авто-публикация релизов: ветка `release` (только PR из `main`),
+  workflow-хранитель источника `release-guard` и `Publish release` после
+  мержа (тег, GitHub Release, Docker-образ).
+* Мультиархитектурные Docker-образы (`linux/amd64`, `linux/arm64`)
+  с SBOM и provenance; pre-release для версий с суффиксом (`-rc.1`).
+* Прогресс проверок в консоли (сценарии печатаются по мере завершения).
+
+### Changed
+
+* CI: отдельные job'ы Lint/Tests/Docker/Secret scan, отмена устаревших
+  прогонов, кэш Docker-слоёв, JUnit-артефакты и сводки в Step Summary.
+* Все GitHub Actions закреплены по commit SHA (Dependabot обновляет).
+* Scorecard публикует отчёт только артефактом — без шума в PR.
+* Dependabot: групповые обновления GitHub Actions.
+
+### Fixed
+
+* Безопасность: минимальная версия TLS 1.2 в python-fallback TLS-пробы;
+  токены и учётные данные прокси редактируются в логах.
+
 ## [2.0.0] - 2026-10-06
 
 Полная переработка проекта: консольное приложение с классификацией
@@ -58,5 +88,6 @@
 * Webhook-авторизация через Bearer-токен.
 * Whitelist Telegram-пользователей и логирование неавторизованных попыток.
 
-[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.0
 [2.0.0]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.0.0

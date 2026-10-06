@@ -10,6 +10,7 @@
 * ``logs`` — последние строки журналов;
 * ``self-test`` — проверка окружения;
 * ``daemon`` — периодические проверки, отчёты, webhook и Telegram;
+* ``web`` — веб-дашборд и REST API;
 * ``version``.
 
 Коды возврата: 0 — норма, 1 — ошибка, 2 — деградация (средний уровень),
@@ -174,6 +175,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_daemon.add_argument("--interval", type=int, default=None, help="Интервал, минут")
     p_daemon.add_argument("--no-telegram", action="store_true")
     p_daemon.add_argument("--no-webhook", action="store_true")
+    p_daemon.add_argument("--web", action="store_true", help="Запустить веб-дашборд")
+
+    p_web = sub.add_parser("web", help="Веб-дашборд с REST API")
+    p_web.add_argument("--host", default=None, help="Адрес (по умолчанию web.host)")
+    p_web.add_argument("--port", type=int, default=None, help="Порт (по умолчанию web.port)")
+    p_web.add_argument("--open", action="store_true", help="Открыть браузер")
+    p_web.add_argument(
+        "--allow-remote-no-auth",
+        action="store_true",
+        help="Разрешить не-loopback адрес без токена (не рекомендуется)",
+    )
 
     sub.add_parser("version", help="Версия")
     return parser
@@ -229,9 +241,24 @@ def _print_record(record: RunRecord, style: Style) -> None:
 
 def cmd_check(args: argparse.Namespace, config: AppConfig) -> int:
     engine = Engine(config)
+    style = Style(_color_enabled(args))
+
+    def on_progress(analysis: Any) -> None:
+        if args.quiet or args.json or not sys.stdout.isatty():
+            return
+        line = (
+            f"  {analysis.level.name:<6} {analysis.title} — {analysis.level.title} "
+            f"({analysis.score}/100)"
+        )
+        print(style.level(analysis.level, line))
+
     try:
         record = asyncio.run(
-            engine.run(profiles=args.profiles or None, samples=args.samples)
+            engine.run(
+                profiles=args.profiles or None,
+                samples=args.samples,
+                progress=on_progress,
+            )
         )
     except ValueError as exc:
         print(f"Ошибка: {exc}", file=sys.stderr)
@@ -240,7 +267,7 @@ def cmd_check(args: argparse.Namespace, config: AppConfig) -> int:
     if args.json:
         print(json.dumps(record.to_dict(), ensure_ascii=False, indent=2))
     elif not args.quiet:
-        _print_record(record, Style(_color_enabled(args)))
+        _print_record(record, style)
 
     if args.webhook:
         sent = asyncio.run(WebhookNotifier(config).notify(record))
@@ -512,6 +539,33 @@ def cmd_self_test(args: argparse.Namespace, config: AppConfig) -> int:
     return EXIT_ERROR if critical_failed else EXIT_OK
 
 
+def _check_web_access(host: str, token: Any, allow_insecure: bool) -> str | None:
+    """Проверить безопасность привязки веб-сервера. ``None`` — всё хорошо."""
+    if host in ("127.0.0.1", "localhost", "::1", "[::1]"):
+        return None
+    if token:
+        return None
+    if allow_insecure:
+        return None
+    return (
+        f"адрес {host} не loopback, а secrets.web.token не задан — "
+        "доступ без авторизации запрещён (обойти: --allow-remote-no-auth)"
+    )
+
+
+def cmd_web(args: argparse.Namespace, config: AppConfig) -> int:
+    from .web import run_web
+
+    host = str(args.host or config.get("web.host", "127.0.0.1"))
+    port = int(args.port or config.get("web.port", 8787))
+    token = config.secret("web.token")
+    problem = _check_web_access(host, token, args.allow_remote_no_auth)
+    if problem:
+        print(f"Ошибка: {problem}", file=sys.stderr)
+        return EXIT_ERROR
+    return run_web(config, host=host, port=port, open_browser=args.open)
+
+
 def cmd_daemon(args: argparse.Namespace, config: AppConfig) -> int:
     if args.interval:
         config.set("scheduler.check_interval_minutes", int(args.interval))
@@ -520,6 +574,16 @@ def cmd_daemon(args: argparse.Namespace, config: AppConfig) -> int:
     engine = Engine(config)
     reporter = Reporter(config)
     notifier = WebhookNotifier(config)
+
+    web_host = str(config.get("web.host", "127.0.0.1"))
+    web_port = int(config.get("web.port", 8787))
+    web_enabled = bool(args.web or config.get("web.enabled"))
+    if web_enabled:
+        problem = _check_web_access(web_host, config.secret("web.token"), False)
+        if problem:
+            logger.warning("Веб-дашборд выключен: %s", problem)
+            web_enabled = False
+
     bot = None
     if not args.no_telegram:
         from .telegram_bot import TelegramBot
@@ -551,10 +615,16 @@ def cmd_daemon(args: argparse.Namespace, config: AppConfig) -> int:
         tasks = [asyncio.create_task(scheduler.run(stop_event))]
         if bot is not None and bot.active:
             tasks.append(asyncio.create_task(bot.run(stop_event)))
+        web_runner = None
+        if web_enabled:
+            from .web import start_web
+
+            web_runner = await start_web(config, engine, reporter, web_host, web_port)
         logger.info(
-            "Демон запущен (webhook: %s, telegram: %s)",
+            "Демон запущен (webhook: %s, telegram: %s, web: %s)",
             "вкл" if notifier.active and not args.no_webhook else "выкл",
             "вкл" if bot is not None and bot.active else "выкл",
+            "вкл" if web_enabled else "выкл",
         )
         try:
             await stop_event.wait()
@@ -562,6 +632,8 @@ def cmd_daemon(args: argparse.Namespace, config: AppConfig) -> int:
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
+            if web_runner is not None:
+                await web_runner.cleanup()
             if bot is not None:
                 await bot.close()
         logger.info("Демон остановлен")
@@ -610,7 +682,7 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_OK
 
     try:
-        config = _load(args, console=args.command == "daemon")
+        config = _load(args, console=args.command in ("daemon", "web"))
     except Exception as exc:  # noqa: BLE001
         print(f"Ошибка загрузки конфигурации: {exc}", file=sys.stderr)
         return EXIT_ERROR
@@ -624,6 +696,7 @@ def main(argv: list[str] | None = None) -> int:
         "logs": cmd_logs,
         "self-test": cmd_self_test,
         "daemon": cmd_daemon,
+        "web": cmd_web,
     }
     handler = handlers.get(args.command)
     if handler is None:
