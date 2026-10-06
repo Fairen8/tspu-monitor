@@ -14,7 +14,6 @@
 from __future__ import annotations
 
 import asyncio
-import re
 from typing import Any
 
 from . import __version__
@@ -30,13 +29,6 @@ def redact_secret(text: str, secret: str | None) -> str:
     if secret and secret in text:
         return text.replace(secret, "***")
     return text
-
-
-def safe_proxy(proxy: str | None) -> str:
-    """Показать прокси без учётных данных (``user:pass@``)."""
-    if not proxy:
-        return "нет"
-    return re.sub(r"//[^/@]+@", "//***@", proxy)
 
 HELP_TEXT = (
     "TSPU Monitor — управление\n\n"
@@ -165,7 +157,7 @@ class TelegramBot:
         self.logger.info(
             "Telegram-бот @%s запущен (прокси: %s)",
             (me.get("result") or {}).get("username"),
-            safe_proxy(self.proxy),
+            "включён" if self.proxy else "не задан",
         )
         try:
             while not stop_event.is_set():

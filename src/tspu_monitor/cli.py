@@ -450,7 +450,7 @@ def cmd_self_test(args: argparse.Namespace, config: AppConfig) -> int:
     settings_ok = config.settings_path.exists()
     add("settings.yaml", settings_ok, str(config.settings_path), critical=True)
     secrets_ok = config.secrets_path.exists()
-    add("secrets.yaml", secrets_ok, str(config.secrets_path))
+    add("secrets.yaml", secrets_ok, "найден" if secrets_ok else "не найден")
 
     for label, directory in (
         ("data_dir", config.data_dir),
