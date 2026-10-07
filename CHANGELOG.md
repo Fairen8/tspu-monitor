@@ -7,6 +7,15 @@
 
 ## [Unreleased]
 
+## [2.1.3] - 2026-10-06
+
+### Changed
+
+* Релизные установщики названы по платформам: `install-linux-macos.sh`,
+  `install-windows.ps1`, `install-windows.cmd` (файлы в репозитории
+  остаются `install.sh` / `install.ps1` / `install.cmd`, чтобы не ломать
+  короткие ссылки). Таблица артефактов и ссылки в README/DOCS обновлены.
+
 ## [2.1.2] - 2026-10-06
 
 ### Added
@@ -146,7 +155,8 @@
 * Webhook-авторизация через Bearer-токен.
 * Whitelist Telegram-пользователей и логирование неавторизованных попыток.
 
-[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.1.2...HEAD
+[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.1.3...HEAD
+[2.1.3]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.3
 [2.1.2]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.2
 [2.1.1]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.1
 [2.1.0]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.0

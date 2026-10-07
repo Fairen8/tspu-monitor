@@ -119,6 +119,13 @@ jobs:
           name: release-notes
           path: .
 
+      - name: Имена установщиков по ОС
+        run: |
+          cp install.sh  install-linux-macos.sh
+          cp install.ps1 install-windows.ps1
+          cp install.cmd install-windows.cmd
+          ls -la install-*
+
       - name: Публикация релиза
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
@@ -132,9 +139,9 @@ jobs:
             dist/*.deb
             dist/*.pyz
             dist/SHA256SUMS
-            install.sh
-            install.ps1
-            install.cmd
+            install-linux-macos.sh
+            install-windows.ps1
+            install-windows.cmd
 
   # ------------------------------------------------------------------
   # 3. Мультиархитектурный Docker-образ в GHCR
