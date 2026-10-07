@@ -90,7 +90,7 @@ def test_release_script_present():
 
 
 def test_installers_present():
-    for name in ("install.sh", "install.ps1"):
+    for name in ("install.sh", "install.ps1", "install.cmd"):
         assert (ROOT / name).exists(), f"нет установщика {name}"
 
     script = (ROOT / "install.sh").read_text(encoding="utf-8")
@@ -109,7 +109,15 @@ def test_installers_present():
 
 def test_release_platform_notes():
     notes = (ROOT / "scripts" / "release_platforms.md").read_text(encoding="utf-8")
-    for needle in ("Debian", "Windows", "install.sh", "install.ps1", ".deb", ".pyz"):
+    for needle in (
+        "Debian",
+        "Windows",
+        "install.sh",
+        "install.ps1",
+        "install.cmd",
+        ".deb",
+        ".pyz",
+    ):
         assert needle in notes, f"нет упоминания {needle}"
     assert "НЕ работает" in notes
 

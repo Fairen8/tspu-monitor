@@ -5,6 +5,7 @@
 | `tspu-monitor_X.Y.Z_all.deb` | Debian / Ubuntu | `sudo apt install ./tspu-monitor_X.Y.Z_all.deb` |
 | `install.sh` | Linux / macOS | установщик одной командой; **в Windows НЕ работает** |
 | `install.ps1` | Windows | CLI, конфигурация, отчёты, дашборд (без сетевых проб); сам ставит Python 3.11+ |
+| `install.cmd` | Windows | запуск двойным кликом (окно не закроется; вызывает `install.ps1`) |
 | `tspu-monitor-X.Y.Z.pyz` | Linux / macOS | переносимый, нужен Python 3.11+ |
 | `tspu_monitor-X.Y.Z-py3-none-any.whl` | Linux / macOS | `pip install`; в Windows — только CLI/дашборд |
 | `tspu_monitor-X.Y.Z.tar.gz` | Linux / macOS | исходники |
@@ -18,8 +19,9 @@
 * `install.sh`, `deploy/*`, systemd/OpenRC-скрипты в Windows **не работают**;
 * сетевые пробы требуют Linux-утилит (`ping -M`, `traceroute`, `nmap`,
   `dig`) и `CAP_NET_RAW` — в Windows они не выполняются;
-* `install.ps1` ставит только CLI, работу с конфигурацией, отчёты и
-  веб-дашборд (просмотр данных);
+* `install.ps1` / `install.cmd` ставят только CLI, работу с конфигурацией,
+  отчёты и веб-дашборд (просмотр данных); окно PowerShell остаётся
+  открытым (пауза), для скриптов есть `-NoPause`;
 * для реальных проверок используйте Linux: Docker, LXC (Proxmox),
   `.deb` или `install.sh`.
 

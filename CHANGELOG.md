@@ -7,12 +7,24 @@
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-10-06
+
 ### Added
 
+* `install.cmd` — установщик Windows для запуска двойным кликом: сам
+  находит/скачивает `install.ps1`, обходит политику выполнения и держит
+  окно открытым.
 * Документация: спецификация сервиса статистики
   `docs/statistics-service-spec.md` — контракт приёма, схемы событий
   `install`/`run`, словари значений, модель данных, публичный API,
   требования к дашборду и приватности.
+
+### Fixed
+
+* `install.ps1` больше не закрывает окно PowerShell: интерактивная пауза в
+  конце (и при ошибке), корректный код выхода для скриптов, флаг
+  `-NoPause` / переменная `TSPU_NO_PAUSE=1`.
+* CI: смоук-тест установки через `install.cmd` (третий режим Windows).
 
 ## [2.1.1] - 2026-10-06
 
@@ -134,7 +146,8 @@
 * Webhook-авторизация через Bearer-токен.
 * Whitelist Telegram-пользователей и логирование неавторизованных попыток.
 
-[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.1.1...HEAD
+[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.1.2...HEAD
+[2.1.2]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.2
 [2.1.1]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.1
 [2.1.0]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.0
 [2.0.0]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.0.0
