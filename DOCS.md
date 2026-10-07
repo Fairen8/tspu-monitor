@@ -768,9 +768,11 @@ Windows (PowerShell; shell-скрипты и сетевые пробы **не р
 irm https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.ps1 | iex
 ```
 
+Или `install.cmd` из релиза — запуск двойным кликом (окно не закроется).
 Установщик сам поставит Python 3.11+ (winget → python.org). В режиме
 `irm | iex` флаги задаются переменными окружения: `TSPU_PREFIX`,
-`TSPU_VERSION`, `TSPU_WITH_WEB=1`, `TSPU_NO_TELEMETRY=1`, `TSPU_UNINSTALL=1`.
+`TSPU_VERSION`, `TSPU_WITH_WEB=1`, `TSPU_NO_TELEMETRY=1`, `TSPU_UNINSTALL=1`;
+для автоматизации — `-NoPause` / `TSPU_NO_PAUSE=1`.
 
 Установщик идемпотентен: обновляет код и зависимости, не перезаписывая
 конфиги и данные.
@@ -983,6 +985,9 @@ tspu-monitor telemetry test       # ручная проверка приёмни
 `install.ps1 -NoTelemetry`. Приёмник по умолчанию —
 `https://statistics.fairen8.ru/api/v1/events` (меняется `telemetry.url`).
 
+Полный контракт приёмника (схемы событий, модель данных, публичный API,
+дашборд) — [`docs/statistics-service-spec.md`](docs/statistics-service-spec.md).
+
 ### 17.1. Что отправляется
 
 Только обезличенные технические метрики:
@@ -1016,5 +1021,5 @@ DEBUG-строка (`tspu.telemetry`). Отправка не задержива�
 
 ---
 
-*Документация соответствует TSPU Monitor 2.1.1. При изменении кода
+*Документация соответствует TSPU Monitor 2.1.2. При изменении кода
 обновляйте её вместе с функциональностью. Лицензия — [MIT](LICENSE).*

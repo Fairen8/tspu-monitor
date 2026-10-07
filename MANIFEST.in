@@ -7,6 +7,8 @@ include CONTRIBUTING.md
 include SECURITY.md
 include pyproject.toml
 include install.sh
+include install.ps1
+include install.cmd
 include Makefile
 
 recursive-include config *.yaml

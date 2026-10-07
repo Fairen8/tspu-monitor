@@ -134,6 +134,7 @@ jobs:
             dist/SHA256SUMS
             install.sh
             install.ps1
+            install.cmd
 
   # ------------------------------------------------------------------
   # 3. Мультиархитектурный Docker-образ в GHCR

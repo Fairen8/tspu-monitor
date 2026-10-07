@@ -154,7 +154,7 @@ jobs:
       - name: Установка (файлом)
         shell: powershell
         run: |
-          .\install.ps1 -Prefix "$env:RUNNER_TEMP\tspu" -Version main
+          .\install.ps1 -NoPause -Prefix "$env:RUNNER_TEMP\tspu" -Version main
           & "$env:RUNNER_TEMP\tspu\bin\tspu-monitor.cmd" version
 
       - name: Установка (irm | iex)
@@ -163,6 +163,13 @@ jobs:
           TSPU_PREFIX: ${{ runner.temp }}\tspu-iex
           TSPU_SRC: ${{ github.workspace }}
           TSPU_NO_TELEMETRY: "1"
+          TSPU_NO_PAUSE: "1"
         run: |
           iex (Get-Content -Raw .\install.ps1)
           & "$env:TSPU_PREFIX\bin\tspu-monitor.cmd" version
+
+      - name: Установка (install.cmd)
+        shell: cmd
+        run: |
+          install.cmd -NoPause -Prefix "%RUNNER_TEMP%\tspu-cmd" -Version main
+          "%RUNNER_TEMP%\tspu-cmd\bin\tspu-monitor.cmd" version

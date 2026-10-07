@@ -28,6 +28,7 @@ param(
     [string]$Repo = $(if ($env:TSPU_REPO) { $env:TSPU_REPO } else { 'Fairen8/tspu-monitor' }),
     [switch]$WithWeb,
     [switch]$NoTelemetry,
+    [switch]$NoPause,
     [int]$WebPort = 8787,
     [switch]$Uninstall
 )
@@ -41,6 +42,15 @@ function Info($m) { Write-Host "[*] $m" -ForegroundColor Cyan }
 function Ok($m)   { Write-Host "[+] $m" -ForegroundColor Green }
 function Warn($m) { Write-Host "[!] $m" -ForegroundColor Yellow }
 function Fail($m) { Write-Host "[x] $m" -ForegroundColor Red; throw $m }
+
+function Wait-OnExit {
+    # Интерактивная пауза, чтобы окно PowerShell не закрывалось.
+    if ($NoPause) { return }
+    if ($env:CI -or $env:TSPU_NO_PAUSE -or $env:TSPU_PAUSE_OWNED) { return }
+    if (-not [Environment]::UserInteractive) { return }
+    Write-Host ''
+    try { Read-Host 'Нажмите Enter, чтобы закрыть окно' | Out-Null } catch { }
+}
 
 function Update-SessionPath {
     try {
@@ -243,9 +253,13 @@ settings_path.write_text(
     }
 }
 
+$script:IsFileMode = [bool]$PSScriptRoot
 try {
     Invoke-Install
+    Wait-OnExit
 } catch {
     Warn "Установка прервана: $($_.Exception.Message)"
-    throw
+    Warn 'Если нужна помощь — пришлите этот вывод: https://github.com/Fairen8/tspu-monitor/issues'
+    Wait-OnExit
+    if ($script:IsFileMode) { exit 1 } else { return }
 }
