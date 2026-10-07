@@ -81,7 +81,7 @@ curl -fsSL .../install.sh | sudo bash -s -- --uninstall
 ```
 
 Установщик также приложен к каждому релизу:
-`https://github.com/Fairen8/tspu-monitor/releases/latest/download/install.sh`
+`https://github.com/Fairen8/tspu-monitor/releases/latest/download/install-linux-macos.sh`
 (для конкретной версии добавьте `--version vX.Y.Z`).
 
 ### Windows (PowerShell)
@@ -90,7 +90,7 @@ curl -fsSL .../install.sh | sudo bash -s -- --uninstall
 irm https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.ps1 | iex
 ```
 
-Либо скачайте `install.cmd` со страницы [релиза](https://github.com/Fairen8/tspu-monitor/releases)
+Либо скачайте `install-windows.cmd` со страницы [релиза](https://github.com/Fairen8/tspu-monitor/releases)
 и запустите **двойным кликом** — окно останется открытым, установщик сам
 поставит Python 3.11+ (winget, при необходимости — установщик python.org)
 и всё настроит.

@@ -112,9 +112,9 @@ def test_release_platform_notes():
     for needle in (
         "Debian",
         "Windows",
-        "install.sh",
-        "install.ps1",
-        "install.cmd",
+        "install-linux-macos.sh",
+        "install-windows.ps1",
+        "install-windows.cmd",
         ".deb",
         ".pyz",
     ):
