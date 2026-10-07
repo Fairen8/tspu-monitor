@@ -983,6 +983,9 @@ tspu-monitor telemetry test       # ручная проверка приёмни
 `install.ps1 -NoTelemetry`. Приёмник по умолчанию —
 `https://statistics.fairen8.ru/api/v1/events` (меняется `telemetry.url`).
 
+Полный контракт приёмника (схемы событий, модель данных, публичный API,
+дашборд) — [`docs/statistics-service-spec.md`](docs/statistics-service-spec.md).
+
 ### 17.1. Что отправляется
 
 Только обезличенные технические метрики:
