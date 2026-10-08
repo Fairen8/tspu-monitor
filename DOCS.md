@@ -910,6 +910,7 @@ pytest -q
 | `scapy import failed` | `pip install "tspu-monitor[raw]"` |
 | Неизвестный сценарий | проверьте имя: `tspu-monitor scenarios list` |
 | Нет доступа к VPN-серверу | контейнер вне нужной сети/VLAN; `network_mode: host` для Docker |
+| Windows: «Установка прервана: Python» | сработала заглушка Python из Microsoft Store (`WindowsApps`). Обновите `install.ps1`/`install-windows.cmd` до 2.2.1+ (установщик её пропускает и ставит Python сам) либо установите Python с python.org |
 
 Журналы: `main.log` (общий), `probes.log` (пробы), `telegram.log`
 (бот). Просмотр: `tspu-monitor logs --file probes.log -n 200`.
@@ -1044,5 +1045,5 @@ DEBUG-строка (`tspu.telemetry`). Отправка не задержива�
 
 ---
 
-*Документация соответствует TSPU Monitor 2.2.0. При изменении кода
+*Документация соответствует TSPU Monitor 2.2.1. При изменении кода
 обновляйте её вместе с функциональностью. Лицензия — [MIT](LICENSE).*

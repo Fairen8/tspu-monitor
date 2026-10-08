@@ -201,3 +201,13 @@ jobs:
         run: |
           install.cmd -NoPause -Prefix "%RUNNER_TEMP%\tspu-cmd" -Version main
           "%RUNNER_TEMP%\tspu-cmd\bin\tspu-monitor.cmd" version
+
+      - name: "Регрессия: заглушка Python (stderr + код 9009)"
+        shell: powershell
+        run: |
+          $env:TSPU_FUNCS_ONLY = '1'
+          . .\install.ps1
+          $bad = Join-Path $env:TEMP 'tspu-badpy.cmd'
+          Set-Content -Path $bad -Value "@echo off`r`necho Python 1>&2`r`nexit /b 9009"
+          if (Test-PythonVersion $bad @()) { throw 'битый python не должен проходить проверку' }
+          Write-Output 'bad-python-probe-ok'

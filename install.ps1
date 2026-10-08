@@ -38,7 +38,7 @@ $WithWeb = $WithWeb -or ($env:TSPU_WITH_WEB -eq '1')
 $NoTelemetry = $NoTelemetry -or ($env:TSPU_NO_TELEMETRY -eq '1')
 $Uninstall = $Uninstall -or ($env:TSPU_UNINSTALL -eq '1')
 
-$InstallerVersion = '2.2.0'
+$InstallerVersion = '2.2.1'
 $script:Step = 0
 $LogFile = Join-Path $env:TEMP 'tspu-monitor-install.log'
 try { Start-Transcript -Path $LogFile -Force | Out-Null } catch { $LogFile = '' }
@@ -71,6 +71,40 @@ function Update-SessionPath {
     }
 }
 
+function Invoke-Native([string]$What, [scriptblock]$Action, [switch]$Capture) {
+    # Запуск внешней программы без «NativeCommandError»: в PowerShell 5.1
+    # при ErrorActionPreference=Stop любая запись в stderr становится
+    # фатальной ошибкой (например, заглушка Python из Microsoft Store).
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $output = @(& $Action 2>&1)
+        $code = $LASTEXITCODE
+        if ($null -eq $code) { $code = 0 }
+        if ($code -ne 0) {
+            $output | ForEach-Object { Write-Host "      $_" }
+            throw "$What завершился с кодом $code"
+        }
+        if ($Capture) { return $output }
+        $output | ForEach-Object { Write-Host "      $_" }
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+}
+
+function Test-PythonVersion([string]$exe, [string[]]$extra) {
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $null = & $exe @extra '-c' 'import sys;raise SystemExit(0 if sys.version_info>=(3,11) else 1)' 2>&1
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+}
+
 function Find-Python {
     $candidates = @(
         'py -3.13', 'py -3.12', 'py -3.11', 'python3.13', 'python3.12',
@@ -78,11 +112,13 @@ function Find-Python {
     )
     foreach ($candidate in $candidates) {
         $parts = $candidate.Split(' ')
-        if (-not (Get-Command $parts[0] -ErrorAction SilentlyContinue)) { continue }
+        $command = Get-Command $parts[0] -ErrorAction SilentlyContinue
+        if (-not $command) { continue }
+        # Заглушка Microsoft Store: запуск открывает Store и пишет в stderr.
+        if ($command.Source -and $command.Source -like '*\WindowsApps\*') { continue }
         $extra = @()
         if ($parts.Count -gt 1) { $extra = $parts[1..($parts.Count - 1)] }
-        & $parts[0] @extra '-c' 'import sys;raise SystemExit(0 if sys.version_info>=(3,11) else 1)' 2>$null
-        if ($LASTEXITCODE -eq 0) { return ,@($parts[0], $extra) }
+        if (Test-PythonVersion $parts[0] $extra) { return ,@($parts[0], $extra) }
     }
     return $null
 }
@@ -91,8 +127,10 @@ function Install-Python {
     if (Get-Command winget -ErrorAction SilentlyContinue) {
         Info 'Python >= 3.11 не найден — устанавливаю через winget'
         try {
-            winget install --id Python.Python.3.12 --silent --disable-interactivity `
-                --accept-package-agreements --accept-source-agreements
+            Invoke-Native 'winget install Python' {
+                winget install --id Python.Python.3.12 --silent --disable-interactivity `
+                    --accept-package-agreements --accept-source-agreements
+            }
             Update-SessionPath
         } catch {
             Warn "winget не смог установить Python: $($_.Exception.Message)"
@@ -150,7 +188,8 @@ function Invoke-Install {
     }
     $pyExe = $python[0]
     $pyArgs = $python[1]
-    Info ("Python: {0}" -f (& $pyExe @pyArgs --version))
+    $pyVersion = (Invoke-Native 'python --version' { & $pyExe @pyArgs --version } -Capture) -join ' '
+    Info ("Python: {0}" -f $pyVersion)
 
     Step 'Получение исходников'
     $src = Get-TspuSources
@@ -163,12 +202,16 @@ function Invoke-Install {
     Step 'Установка приложения'
     if (-not (Test-Path (Join-Path $Venv 'Scripts\python.exe'))) {
         Info "Создаю venv: $Venv"
-        & $pyExe @pyArgs -m venv $Venv
+        Invoke-Native 'Создание venv' { & $pyExe @pyArgs -m venv $Venv }
     }
     $venvPython = Join-Path $Venv 'Scripts\python.exe'
     Info 'Устанавливаю зависимости (pip)'
-    & $venvPython -m pip install --upgrade --quiet pip wheel setuptools
-    & $venvPython -m pip install --upgrade --quiet --no-cache-dir "${Prefix}[raw]"
+    Invoke-Native 'pip (обновление)' {
+        & $venvPython -m pip install --upgrade --quiet pip wheel setuptools
+    }
+    Invoke-Native 'pip (установка пакета)' {
+        & $venvPython -m pip install --upgrade --quiet --no-cache-dir "${Prefix}[raw]"
+    }
 
     Step 'Настройка конфигурации'
     $settings = Join-Path $ConfigDir 'settings.yaml'
@@ -194,7 +237,7 @@ set TSPU_CONFIG_DIR=$ConfigDir
     }
 
     Step 'Проверка установки'
-    $version = (& $venvPython -m tspu_monitor version 2>&1) -join ' '
+    $version = (Invoke-Native 'tspu-monitor version' { & $venvPython -m tspu_monitor version } -Capture) -join ' '
     Ok "Проверено: $version"
 
     Write-Host ''
@@ -228,8 +271,7 @@ function Get-TspuSources {
     Invoke-WebRequest -Uri $url -OutFile $tar -UseBasicParsing
     $extract = Join-Path $tmp 'src'
     New-Item -ItemType Directory -Path $extract | Out-Null
-    tar -xzf $tar -C $extract --strip-components=1
-    if ($LASTEXITCODE -ne 0) { Fail 'Не удалось распаковать архив (нужен tar из Windows 10+)' }
+    Invoke-Native 'Распаковка архива (tar)' { tar -xzf $tar -C $extract --strip-components=1 }
     return $extract
 }
 
@@ -265,10 +307,12 @@ settings_path.write_text(
 '@ | Set-Content -Encoding UTF8 -Path $scriptFile
 
     $venvPython = Join-Path $Prefix 'venv\Scripts\python.exe'
-    & $venvPython $scriptFile $ConfigDir `
-        $(if ($flags.web) { '1' } else { '0' }) `
-        $flags.web_port `
-        $(if ($flags.telemetry) { '1' } else { '0' })
+    Invoke-Native 'применение флагов конфигурации' {
+        & $venvPython $scriptFile $ConfigDir `
+            $(if ($flags.web) { '1' } else { '0' }) `
+            $flags.web_port `
+            $(if ($flags.telemetry) { '1' } else { '0' })
+    }
     Remove-Item -Force $scriptFile -ErrorAction SilentlyContinue
 
     if ($flags.web) { Ok "Веб-дашборд включён: http://127.0.0.1:$WebPort/" }
@@ -280,6 +324,7 @@ settings_path.write_text(
 }
 
 $script:IsFileMode = [bool]$PSScriptRoot
+if ($env:TSPU_FUNCS_ONLY -eq '1') { Stop-TspuLog; return }
 try {
     Invoke-Install
     Wait-OnExit
