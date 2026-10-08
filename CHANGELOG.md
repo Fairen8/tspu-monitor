@@ -7,6 +7,17 @@
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-10-06
+
+### Fixed
+
+* Windows-установщик: устранён фатальный сбой «Установка прервана: Python»
+  при заглушке Python из Microsoft Store. В PowerShell 5.1 запись native-
+  команды в stderr при `ErrorActionPreference=Stop` считалась ошибкой —
+  теперь все внешние вызовы (python, pip, tar, winget) идут через
+  безопасную обёртку, а сама заглушка `WindowsApps` пропускается.
+* CI: регрессионный тест «битого python» (stderr + код 9009).
+
 ## [2.2.0] - 2026-10-06
 
 ### Changed
@@ -171,7 +182,8 @@
 * Webhook-авторизация через Bearer-токен.
 * Whitelist Telegram-пользователей и логирование неавторизованных попыток.
 
-[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.1
 [2.2.0]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.0
 [2.1.3]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.3
 [2.1.2]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.2
