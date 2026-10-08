@@ -7,6 +7,23 @@
 
 ## [Unreleased]
 
+## [2.2.2] - 2026-10-08
+
+### Added
+
+* Телеметрия (`run`): по каждому сценарию — перцентили задержек
+  (`latency_p50`/`latency_p95`), `timeouts`, стадия отказа (`fail_stage`),
+  счётчики аномалий (`anomalies`: RST/TTL/IP-ID).
+* Телеметрия (`run`): `delta_score` к прошлому прогону, переходы
+  `block_started`/`block_ended`, `first_critical_at`.
+* Телеметрия: `tg_api_ok` (Telegram API без прокси), `ipv6`, `dns_mode`,
+  `profiles_on`, `schedule_min`, `custom_scenarios`, `machine`
+  (ядра/округлённая RAM), `errors` (до трёх имён классов исключений).
+* Спецификация сервиса статистики: `country`/`asn_class` серверным GeoIP
+  без хранения IP, новые поля и схема БД, API волн и сравнений периодов,
+  алерты в Telegram, дневной дайджест, Parquet/CSV-экспорт,
+  синтетический мониторинг.
+
 ## [2.2.1] - 2026-10-06
 
 ### Fixed
@@ -182,7 +199,8 @@
 * Webhook-авторизация через Bearer-токен.
 * Whitelist Telegram-пользователей и логирование неавторизованных попыток.
 
-[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.2.1...HEAD
+[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.2.2...HEAD
+[2.2.2]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.2
 [2.2.1]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.1
 [2.2.0]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.0
 [2.1.3]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.3
