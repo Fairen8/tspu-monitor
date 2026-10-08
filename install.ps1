@@ -38,13 +38,22 @@ $WithWeb = $WithWeb -or ($env:TSPU_WITH_WEB -eq '1')
 $NoTelemetry = $NoTelemetry -or ($env:TSPU_NO_TELEMETRY -eq '1')
 $Uninstall = $Uninstall -or ($env:TSPU_UNINSTALL -eq '1')
 
-function Info($m) { Write-Host "[*] $m" -ForegroundColor Cyan }
-function Ok($m)   { Write-Host "[+] $m" -ForegroundColor Green }
-function Warn($m) { Write-Host "[!] $m" -ForegroundColor Yellow }
-function Fail($m) { Write-Host "[x] $m" -ForegroundColor Red; throw $m }
+$InstallerVersion = '2.2.0'
+$script:Step = 0
+$LogFile = Join-Path $env:TEMP 'tspu-monitor-install.log'
+try { Start-Transcript -Path $LogFile -Force | Out-Null } catch { $LogFile = '' }
+
+function Step($m) { $script:Step++; Write-Host ("[{0}/6] {1}" -f $script:Step, $m) -ForegroundColor Cyan }
+function Stop-TspuLog { try { Stop-Transcript | Out-Null } catch { } }
+
+function Info($m) { Write-Host "      $m" }
+function Ok($m)   { Write-Host "   ok $m" -ForegroundColor Green }
+function Warn($m) { Write-Host "   !! $m" -ForegroundColor Yellow }
+function Fail($m) { Write-Host "   xx $m" -ForegroundColor Red; throw $m }
 
 function Wait-OnExit {
     # Интерактивная пауза, чтобы окно PowerShell не закрывалось.
+    Stop-TspuLog
     if ($NoPause) { return }
     if ($env:CI -or $env:TSPU_NO_PAUSE -or $env:TSPU_PAUSE_OWNED) { return }
     if (-not [Environment]::UserInteractive) { return }
@@ -122,11 +131,15 @@ function Invoke-Install {
     $BinDir = Join-Path $Prefix 'bin'
     $DataDir = Join-Path $Prefix 'data'
 
-    Info "Установка TSPU Monitor в $Prefix"
-    Info ("ОС: {0}; PowerShell {1}" -f [Environment]::OSVersion.VersionString, $PSVersionTable.PSVersion)
+    Write-Host ("TSPU Monitor Installer {0}" -f $InstallerVersion) -ForegroundColor Cyan
+    Step "Проверка окружения"
+    Info "Каталог установки: $Prefix"
+    Info ("ОС: {0}; PowerShell {1}; версия установщика {2}" -f [Environment]::OSVersion.VersionString, $PSVersionTable.PSVersion, $InstallerVersion)
+    if (Test-Path $Prefix) { Info 'Найдена предыдущая установка — обновляю (конфиги сохраняются)' }
 
     if ($Uninstall) { Uninstall-Tspu; return }
 
+    Step 'Поиск Python (>= 3.11)'
     $python = Find-Python
     if (-not $python) {
         Install-Python
@@ -139,6 +152,7 @@ function Invoke-Install {
     $pyArgs = $python[1]
     Info ("Python: {0}" -f (& $pyExe @pyArgs --version))
 
+    Step 'Получение исходников'
     $src = Get-TspuSources
     New-Item -ItemType Directory -Force -Path $Prefix, $BinDir, $DataDir | Out-Null
     if ($src -ne $Prefix) {
@@ -146,6 +160,7 @@ function Invoke-Install {
         Copy-Item -Recurse -Force (Join-Path $src '*') $Prefix
     }
 
+    Step 'Установка приложения'
     if (-not (Test-Path (Join-Path $Venv 'Scripts\python.exe'))) {
         Info "Создаю venv: $Venv"
         & $pyExe @pyArgs -m venv $Venv
@@ -155,6 +170,7 @@ function Invoke-Install {
     & $venvPython -m pip install --upgrade --quiet pip wheel setuptools
     & $venvPython -m pip install --upgrade --quiet --no-cache-dir "${Prefix}[raw]"
 
+    Step 'Настройка конфигурации'
     $settings = Join-Path $ConfigDir 'settings.yaml'
     $secrets = Join-Path $ConfigDir 'secrets.yaml'
     New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
@@ -177,14 +193,24 @@ set TSPU_CONFIG_DIR=$ConfigDir
         Ok "PATH обновлён (перезапустите терминал)"
     }
 
+    Step 'Проверка установки'
+    $version = (& $venvPython -m tspu_monitor version 2>&1) -join ' '
+    Ok "Проверено: $version"
+
     Write-Host ''
-    Ok 'TSPU Monitor установлен'
+    Write-Host "=================================================================" -ForegroundColor Green
+    Write-Host (" TSPU Monitor установлен ({0})" -f $version) -ForegroundColor Green
+    Write-Host "=================================================================" -ForegroundColor Green
     Write-Host "  CLI:     $cmd"
     Write-Host "  Конфиг:  $ConfigDir\secrets.yaml"
-    Write-Host "  Проверка: tspu-monitor version ; tspu-monitor web --open"
+    Write-Host "  Лог:     $LogFile"
+    Write-Host ''
+    Write-Host '  Что дальше:'
+    Write-Host '    1) Проверить: tspu-monitor version'
+    Write-Host '    2) Дашборд:   tspu-monitor web --open'
+    Write-Host '    3) Удаление:  .\install.ps1 -Uninstall'
     Warn 'Windows: сетевые пробы и shell-скрипты НЕ поддерживаются.'
-    Warn 'Доступны только CLI, конфигурация, отчёты и веб-дашборд.'
-    Warn 'Для диагностики используйте Linux: Docker, LXC, .deb или install.sh.'
+    Warn 'Для диагностики используйте Linux: Docker, LXC, .deb или install-linux-macos.sh.'
 }
 
 function Get-TspuSources {

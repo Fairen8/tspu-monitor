@@ -101,10 +101,18 @@ def test_installers_present():
         "--with-web",
         "--no-telemetry",
         "--uninstall",
+        "--purge",
+        "--no-color",
     ):
         assert flag in script
     for distro in ("apt-get", "dnf", "apk", "pacman", "zypper", "brew"):
         assert distro in script
+
+
+def test_install_cmd_is_ascii():
+    # Кириллица в .cmd ломает разбор команд cmd.exe (проверено).
+    data = (ROOT / "install.cmd").read_bytes()
+    data.decode("ascii")
 
 
 def test_release_platform_notes():

@@ -60,25 +60,33 @@ JSON и exit-коды; разворачивается в Docker, LXC (Proxmox) �
 
 ### Одна команда (Linux и macOS)
 
-Скрипт сам определит дистрибутив (Debian/Ubuntu, RHEL/Fedora, Alpine,
-Arch, openSUSE, macOS), поставит зависимости, создаст venv, CLI и сервис:
+Установщик сам определит дистрибутив и пакетный менеджер, поставит
+зависимости и Python (при необходимости), создаст venv, CLI, сервис и
+проведёт самопроверку. **sudo не обязателен**: без root всё ставится в
+`~/.local/share/tspu-monitor` (CLI — `~/.local/bin`), без сервиса.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.sh | bash
 ```
 
 Полезные варианты:
 
 ```bash
+# системная установка с сервисом (systemd/OpenRC/launchd)
+curl -fsSL .../install.sh | sudo bash
 # конкретная версия
-curl -fsSL .../install.sh | sudo bash -s -- --version v2.1.0
+curl -fsSL .../install.sh | bash -s -- --version v2.2.0
 # сразу с веб-дашбордом (на 127.0.0.1:8787)
-curl -fsSL .../install.sh | sudo bash -s -- --with-web
-# без сервиса (только CLI)
-curl -fsSL .../install.sh | sudo bash -s -- --no-service
-# удаление
-curl -fsSL .../install.sh | sudo bash -s -- --uninstall
+curl -fsSL .../install.sh | bash -s -- --with-web
+# только CLI, без сервиса и без установки пакетов
+curl -fsSL .../install.sh | bash -s -- --no-service --no-deps
+# удаление (с данными: --purge)
+bash install.sh --uninstall
 ```
+
+Полный список флагов — `bash install.sh --help`. Установщик пишет пошаговый
+лог (`/var/log/tspu-monitor-install.log` для root) и завершается
+самопроверкой `tspu-monitor self-test`.
 
 Установщик также приложен к каждому релизу:
 `https://github.com/Fairen8/tspu-monitor/releases/latest/download/install-linux-macos.sh`

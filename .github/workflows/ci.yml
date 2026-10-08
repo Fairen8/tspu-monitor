@@ -131,7 +131,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Установка на чистом Debian 12
+      - name: Установка на чистом Debian 12 (root)
         run: |
           docker run --rm -v "$PWD:/src" -w /src debian:12 bash -c '
             set -e
@@ -139,6 +139,34 @@ jobs:
             tspu-monitor version
             tspu-monitor self-test --json >/dev/null || true
           '
+
+      - name: Установка без root (user mode)
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src debian:12 bash -c '
+            set -e
+            apt-get update -qq && apt-get install -y -qq python3 python3-venv >/dev/null
+            useradd -m tester
+            chown -R tester /src
+            su tester -c "cd /src && bash install.sh --no-deps --no-service --no-telemetry --prefix /home/tester/.local/share/tspu-monitor"
+            su tester -c "/home/tester/.local/share/tspu-monitor/venv/bin/tspu-monitor version"
+            su tester -c "test -x /home/tester/.local/bin/tspu-monitor && echo wrapper-ok"
+          '
+
+  install-macos:
+    name: "Install (macOS)"
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+
+      - name: Установка без root (user mode)
+        run: |
+          bash install.sh --no-deps --no-service --no-telemetry
+          "$HOME/.local/share/tspu-monitor/venv/bin/tspu-monitor" version
 
   install-windows:
     name: "Install (Windows)"
