@@ -732,33 +732,57 @@ net_admin net_bind_service`. Подробности и частые пробле
 Одна команда — сам определяет дистрибутив и пакетный менеджер:
 
 ```bash
+# без root: установка в ~/.local/share/tspu-monitor, без сервиса
+curl -fsSL https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.sh | bash
+
+# системная установка с сервисом (systemd/OpenRC/launchd)
 curl -fsSL https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.sh | sudo bash
 ```
 
 Поддерживаются Debian/Ubuntu, RHEL/CentOS/Rocky/Alma/Fedora, Alpine,
-Arch/Manjaro, openSUSE и macOS (Homebrew). Установщик:
+Arch/Manjaro, openSUSE и macOS (Homebrew). Установщик выполняет 8 шагов
+с понятным выводом, пишет лог и завершается самопроверкой
+(`tspu-monitor self-test`):
 
-1. ставит системные зависимости (ping, traceroute, nmap, dig, openssl);
-2. находит Python ≥ 3.11, создаёт venv и ставит пакет;
-3. создаёт CLI `/usr/local/bin/tspu-monitor` и сервис
-   (systemd, OpenRC или без сервиса);
-4. создаёт конфиги, не перезаписывая существующие.
+1. проверка окружения (ОС, режим root/user, пути, обновление/установка);
+2. системные зависимости (ping, traceroute, nmap, dig, openssl);
+3. Python ≥ 3.11 (при наличии пакетного менеджера — установит);
+4. исходники (локальные или с GitHub по `--version`);
+5. venv + установка пакета;
+6. конфиги (существующие не перезаписываются) + пути данных/журналов;
+7. сервис: systemd, OpenRC или launchd (в user-режиме пропускается);
+8. самопроверка и «Что дальше».
 
 | Флаг | Назначение |
 |---|---|
 | `--version REF` | версия (тег `vX.Y.Z`) или `main` |
-| `--prefix DIR` | каталог установки (`/opt/tspu-monitor`) |
+| `--prefix DIR` | каталог установки (`/opt/tspu-monitor` или `~/.local/share/...`) |
 | `--no-deps` | не ставить системные пакеты |
 | `--no-service` | не создавать сервис |
 | `--with-web` | включить веб-дашборд |
 | `--web-host HOST`, `--web-port PORT` | адрес и порт дашборда |
-| `--uninstall` | удалить (данные сохраняются; `TSPU_PURGE=1` — удалить всё) |
+| `--no-telemetry` | отключить анонимную статистику |
+| `--uninstall` | удалить (данные сохраняются) |
+| `--purge` | вместе с `--uninstall` удалить данные и журналы |
+| `--no-color`, `-h`/`--help` | без цвета / справка |
+
+Особенности:
+
+* **User-режим без root**: `~/.local/share/tspu-monitor`, CLI в
+  `~/.local/bin`, данные/журналы внутри каталога; сервис не создаётся.
+* **Root-режим**: `/opt/tspu-monitor`, данные `/var/lib/tspu-monitor`,
+  журналы `/var/log/tspu-monitor`, сервис включён, лог установки —
+  `/var/log/tspu-monitor-install.log`.
+* Идемпотентен: повторный запуск обновляет код и зависимости, сохраняя
+  конфиги и данные.
+* Цвет отключается автоматически (не-TTY, `NO_COLOR=1`, `--no-color`).
 
 Примеры:
 
 ```bash
-curl -fsSL .../install.sh | sudo bash -s -- --version v2.1.0 --with-web
-curl -fsSL .../install.sh | sudo bash -s -- --no-service
+curl -fsSL .../install.sh | bash -s -- --version v2.2.0 --with-web
+curl -fsSL .../install.sh | bash -s -- --no-service --no-deps
+bash install.sh --uninstall --purge
 ```
 
 Windows (PowerShell; shell-скрипты и сетевые пробы **не работают** —
@@ -769,14 +793,12 @@ irm https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.ps1 | ie
 ```
 
 Или `install-windows.cmd` из релиза — запуск двойным кликом (окно не
-закроется).
-Установщик сам поставит Python 3.11+ (winget → python.org). В режиме
+закроется после завершения). Установщик сам поставит Python 3.11+
+(winget → python.org), выполнит 6 шагов, оставит лог
+`%TEMP%\tspu-monitor-install.log` и проверит установку. В режиме
 `irm | iex` флаги задаются переменными окружения: `TSPU_PREFIX`,
 `TSPU_VERSION`, `TSPU_WITH_WEB=1`, `TSPU_NO_TELEMETRY=1`, `TSPU_UNINSTALL=1`;
 для автоматизации — `-NoPause` / `TSPU_NO_PAUSE=1`.
-
-Установщик идемпотентен: обновляет код и зависимости, не перезаписывая
-конфиги и данные.
 
 ### 12.5. systemd
 
@@ -1022,5 +1044,5 @@ DEBUG-строка (`tspu.telemetry`). Отправка не задержива�
 
 ---
 
-*Документация соответствует TSPU Monitor 2.1.3. При изменении кода
+*Документация соответствует TSPU Monitor 2.2.0. При изменении кода
 обновляйте её вместе с функциональностью. Лицензия — [MIT](LICENSE).*

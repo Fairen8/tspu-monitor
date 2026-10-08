@@ -7,6 +7,22 @@
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-06
+
+### Changed
+
+* Полностью переработаны установщики и их UX:
+  * `install.sh` — 8 шагов с понятным выводом, работа **без root**
+    (user-режим в `~/.local/share/tspu-monitor`, CLI в `~/.local/bin`,
+    данные внутри каталога), поддержка **launchd** для macOS, лог
+    установки, самопроверка в конце, флаги `--purge`, `--no-color`,
+    аккуратные ошибки с номером строки и путём к логу;
+  * `install.ps1` — 6 шагов, баннер с версией, лог
+    `%TEMP%\tspu-monitor-install.log`, проверка `tspu-monitor version`
+    после установки, корректные коды выхода и пауза;
+  * CI: установка проверяется на чистом Debian (root **и** user-режим),
+    на macOS (user-режим) и в трёх режимах Windows.
+
 ## [2.1.3] - 2026-10-06
 
 ### Changed
@@ -155,7 +171,8 @@
 * Webhook-авторизация через Bearer-токен.
 * Whitelist Telegram-пользователей и логирование неавторизованных попыток.
 
-[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.1.3...HEAD
+[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.0
 [2.1.3]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.3
 [2.1.2]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.2
 [2.1.1]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.1.1
