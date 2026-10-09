@@ -23,6 +23,20 @@ logger = get_logger("tspu.scenarios")
 
 _EXCLUDED_MODULES = {"base", "manager", "__init__"}
 
+#: Встроенные модули сценариев. Явный список нужен для замороженной
+#: сборки (PyInstaller): внутри exe нет .py-файлов на диске, и
+#: ``pkgutil.iter_modules`` их не находит.
+BUILTIN_MODULES = (
+    "amnezia",
+    "dns",
+    "openvpn",
+    "quic",
+    "shadowsocks",
+    "web",
+    "wireguard",
+    "xray",
+)
+
 
 class ScenarioManager:
     """Найти, создать и включить/выключить сценарии."""
@@ -43,17 +57,24 @@ class ScenarioManager:
     def _discover(self) -> None:
         import tspu_monitor.scenarios as scenarios_pkg
 
+        module_names: set[str] = set(BUILTIN_MODULES)
         for _, module_name, is_pkg in pkgutil.iter_modules(scenarios_pkg.__path__):
             if module_name in _EXCLUDED_MODULES or module_name.startswith("_"):
                 continue
             if is_pkg:
                 continue
+            module_names.add(module_name)
+
+        for module_name in sorted(module_names):
             try:
                 module = importlib.import_module(
                     f"{scenarios_pkg.__name__}.{module_name}"
                 )
-            except Exception as exc:  # noqa: BLE001
+            except ImportError as exc:
                 logger.warning("Не удалось импортировать сценарий %s: %s", module_name, exc)
+                continue
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Сценарий %s сломан: %s", module_name, exc)
                 continue
             self._register_module(module)
 

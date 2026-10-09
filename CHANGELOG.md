@@ -7,6 +7,16 @@
 
 ## [Unreleased]
 
+## [2.2.4] - 2026-10-10
+
+### Fixed
+
+* Портативный exe: сценарии не находились (пустой `scenarios list`,
+  проверка ругалась «нет активных сценариев») — внутри PyInstaller нет
+  `.py`-файлов, и `pkgutil.iter_modules` их не видел. Добавлен явный
+  список встроенных сценариев и `--collect-submodules` в релизную
+  сборку; регрессионный тест на «замороженное» обнаружение.
+
 ## [2.2.3] - 2026-10-10
 
 ### Fixed
@@ -248,7 +258,8 @@
 * Webhook-авторизация через Bearer-токен.
 * Whitelist Telegram-пользователей и логирование неавторизованных попыток.
 
-[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.2.3...HEAD
+[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.2.4...HEAD
+[2.2.4]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.4
 [2.2.3]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.3
 [2.2.2]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.2
 [2.2.1]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.1

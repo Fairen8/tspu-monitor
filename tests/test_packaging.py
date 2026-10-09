@@ -139,7 +139,12 @@ def test_windows_portable_exe_pipeline():
     workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(
         encoding="utf-8"
     )
-    for needle in ("pyinstaller", "windows_entry.py", "windows-x64.exe"):
+    for needle in (
+        "pyinstaller",
+        "--collect-submodules tspu_monitor",
+        "windows_entry.py",
+        "windows-x64.exe",
+    ):
         assert needle in workflow, f"нет {needle} в release.yml"
 
     readme = (ROOT / "README.md").read_text(encoding="utf-8")

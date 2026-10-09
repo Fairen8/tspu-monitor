@@ -34,6 +34,14 @@ def test_discovery_finds_builtin_scenarios(config: AppConfig):
     assert BUILTIN.issubset(set(manager.known_names()))
 
 
+def test_discovery_works_without_pkgutil(config: AppConfig, monkeypatch):
+    # Замороженный exe (PyInstaller): pkgutil не видит модули внутри
+    # архива — сценарии должны находиться по явному списку BUILTIN_MODULES.
+    monkeypatch.setattr("pkgutil.iter_modules", lambda *args, **kwargs: iter([]))
+    manager = make_manager(config)
+    assert BUILTIN.issubset(set(manager.known_names()))
+
+
 def test_list_all_metadata(config: AppConfig):
     manager = make_manager(config)
     items = manager.list_all()
