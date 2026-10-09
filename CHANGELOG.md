@@ -7,6 +7,28 @@
 
 ## [Unreleased]
 
+## [2.2.3] - 2026-10-10
+
+### Fixed
+
+* CLI: глобальные флаги (`--no-color`, `--log-level`, `--config-dir`)
+  теперь работают и после подкоманды — `check --no-color` больше не
+  падает с «unrecognized arguments».
+* Дашборд: «худший» уровень обрывов считает сервер по важности
+  (`constant` важнее `rare`); раньше алфавитная сортировка в браузере
+  показывала неверный уровень.
+* Дашборд: баннер «нужен токен» действительно скрывается (CSS
+  `[hidden]` перебивался правилом `display: flex`).
+
+### Changed
+
+* Дашборд переработан: шесть карточек (уровень, обрывы, сценарии,
+  последний запуск, всего запусков, critical/warning), график с осями
+  и кликабельными точками, таблица последних запусков с просмотром
+  любого прогона («← К последнему»), кнопка «Отчёт»
+  (`GET /api/report.txt`), всплывающие уведомления о результате
+  проверки, обратный отсчёт автообновления.
+
 ## [2.2.2] - 2026-10-08
 
 ### Fixed
@@ -226,7 +248,8 @@
 * Webhook-авторизация через Bearer-токен.
 * Whitelist Telegram-пользователей и логирование неавторизованных попыток.
 
-[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.2.2...HEAD
+[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.2.3...HEAD
+[2.2.3]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.3
 [2.2.2]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.2
 [2.2.1]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.1
 [2.2.0]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.0

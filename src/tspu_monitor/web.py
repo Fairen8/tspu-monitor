@@ -19,7 +19,7 @@ from . import __version__
 from .config import AppConfig
 from .engine import Engine
 from .logging_setup import get_logger
-from .models import Severity, utc_now_iso
+from .models import DisconnectLevel, Severity, utc_now_iso
 from .reporter import Reporter
 from .utils import parse_iso
 
@@ -82,6 +82,19 @@ def _stats(runs) -> dict[str, int]:
     }
 
 
+def _worst_disconnect(record) -> dict[str, str] | None:
+    """Худший уровень обрывов в запуске (серверная сортировка по важности)."""
+    if record is None:
+        return None
+    worst = DisconnectLevel.NONE
+    for analysis in record.analyses:
+        if analysis.disconnect > worst:
+            worst = analysis.disconnect
+    if worst == DisconnectLevel.NONE:
+        return None
+    return {"level": worst.name.lower(), "title": worst.title}
+
+
 def build_app(
     config: AppConfig,
     engine: Engine | None = None,
@@ -127,6 +140,7 @@ def build_app(
                     "auth_required": bool(token),
                 },
                 "stats": _stats(runs),
+                "disconnect": _worst_disconnect(last),
                 "history": history,
                 "last_run": last.to_dict() if last else None,
             }
@@ -173,6 +187,18 @@ def build_app(
             return web.json_response({"error": str(exc)}, status=400)
         return web.json_response(record.to_dict())
 
+    async def report_file(request: web.Request) -> web.Response:
+        if not _authorized(request, token):
+            return _unauthorized()
+        records = engine.list_runs(limit=500)
+        text, _ = reporter.generate(records, engine.last_record)
+        return web.Response(
+            text=text,
+            content_type="text/plain",
+            charset="utf-8",
+            headers={"Content-Disposition": 'attachment; filename="tspu-report.txt"'},
+        )
+
     async def metrics(request: web.Request) -> web.Response:
         if not _authorized(request, token):
             return _unauthorized()
@@ -215,6 +241,7 @@ def build_app(
     app.router.add_get("/api/runs", runs_list)
     app.router.add_get("/api/runs/{run_id}", run_detail)
     app.router.add_post("/api/check", check)
+    app.router.add_get("/api/report.txt", report_file)
     app.router.add_get("/metrics", metrics)
     return app
 

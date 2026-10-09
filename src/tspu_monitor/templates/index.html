@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TSPU Monitor — дашборд</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233b82f6'/%3E%3Cpath d='M6 17h5l3-8 5 14 3-6h4' fill='none' stroke='%23fff' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
 <style>
   :root {
     --bg: #0b1220;
@@ -24,6 +25,7 @@
     --shadow: 0 10px 30px rgba(2, 8, 23, .45);
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { margin: 0; padding: 0; }
   body {
     background: radial-gradient(1200px 600px at 80% -10%, #16224a 0%, var(--bg) 55%) fixed;
@@ -32,12 +34,9 @@
     min-height: 100vh;
   }
   a { color: var(--accent); text-decoration: none; }
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 22px 18px 60px; }
+  .wrap { max-width: 1220px; margin: 0 auto; padding: 22px 18px 60px; }
 
-  header.top {
-    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-    padding: 4px 2px 18px;
-  }
+  header.top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 4px 2px 18px; }
   .logo {
     width: 40px; height: 40px; border-radius: 12px; flex: 0 0 auto;
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
@@ -63,25 +62,38 @@
   button.primary { background: linear-gradient(135deg, #2563eb, #7c3aed); border: 0; }
   button.primary:disabled { opacity: .55; cursor: default; }
   button.ghost { background: transparent; }
+  button.small { padding: 4px 10px; font-size: 13px; border-radius: 8px; }
+
+  .banner {
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    border: 1px solid rgba(245,158,11,.45); background: rgba(245,158,11,.1);
+    border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; font-size: 14px;
+  }
+  #token-row { display: none; margin-bottom: 14px; }
 
   .grid { display: grid; gap: 16px; }
-  .cards { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); margin-bottom: 16px; }
+  .cards { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 16px; }
   .card {
     background: linear-gradient(180deg, var(--panel), var(--panel-2));
     border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 16px 18px; box-shadow: var(--shadow);
+    padding: 14px 16px; box-shadow: var(--shadow);
   }
   .card .label { color: var(--muted); font-size: 12.5px; text-transform: uppercase; letter-spacing: .6px; }
-  .card .value { font-size: 30px; font-weight: 700; margin-top: 6px; }
+  .card .value { font-size: 28px; font-weight: 700; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .card .value.small { font-size: 20px; margin-top: 12px; }
   .card .hint { color: var(--muted); font-size: 13px; margin-top: 3px; }
   .two { grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); }
+  aside { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
   .panel {
     background: var(--panel); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow);
     min-width: 0;
   }
-  .panel h2 { margin: 0 0 14px; font-size: 15px; color: var(--muted); font-weight: 600;
+  .panel h2 { margin: 0 0 14px; font-size: 14px; color: var(--muted); font-weight: 600;
               text-transform: uppercase; letter-spacing: .7px; }
+  .panel-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .panel-head h2 { margin: 0; }
+  .panel-head .spacer { margin-left: auto; }
   .badge {
     display: inline-block; padding: 3px 9px; border-radius: 999px;
     font-size: 12.5px; font-weight: 700; border: 1px solid transparent;
@@ -95,22 +107,18 @@
     display: inline-block; margin: 0 6px 6px 0; padding: 4px 10px; font-size: 13px;
     border-radius: 8px; background: var(--bg-soft); border: 1px solid var(--border); color: var(--text);
   }
-  .scenario {
-    border: 1px solid var(--border); border-radius: 12px; margin-bottom: 10px;
-    background: var(--bg-soft); overflow: hidden;
-  }
-  .scenario .head {
-    display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer;
-  }
+  .scenario { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 10px;
+              background: var(--bg-soft); overflow: hidden; }
+  .scenario .head { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; }
   .scenario .head:hover { background: rgba(59,130,246,.06); }
-  .scenario .name { font-weight: 600; }
+  .scenario .name { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .scenario .target { color: var(--muted); font-size: 13px; }
   .scenario .score { margin-left: auto; display: flex; align-items: center; gap: 10px; }
   .bar { width: 110px; height: 7px; border-radius: 999px; background: #22304f; overflow: hidden; }
   .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--ok), var(--mid), var(--full)); }
   .scenario .body { display: none; padding: 0 14px 14px; border-top: 1px solid var(--border); }
   .scenario.open .body { display: block; }
-  .kv { display: grid; grid-template-columns: 180px 1fr; gap: 4px 14px; font-size: 13.5px; margin: 10px 0; }
+  .kv { display: grid; grid-template-columns: 170px 1fr; gap: 4px 14px; font-size: 13.5px; margin: 10px 0; }
   .kv .k { color: var(--muted); }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--border); }
@@ -124,12 +132,29 @@
   .empty { color: var(--muted); padding: 10px 0; }
   footer { color: var(--muted); font-size: 12.5px; margin-top: 26px; text-align: center; }
   .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .switch { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
   input[type=text] {
     background: var(--bg-soft); color: var(--text); border: 1px solid var(--border);
-    border-radius: 9px; padding: 7px 10px; font: inherit; min-width: 220px;
+    border-radius: 9px; padding: 7px 10px; font: inherit; min-width: 240px;
   }
-  svg.chart { width: 100%; height: 170px; display: block; }
+
+  .chart-box { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: 1fr 20px; gap: 4px 8px; }
+  .chart-y { display: flex; flex-direction: column; justify-content: space-between;
+             color: var(--muted); font-size: 11px; text-align: right; padding: 2px 0; }
+  .chart-x { grid-column: 2; display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; }
+  svg.chart { width: 100%; height: 180px; display: block; }
+
+  .run-row { cursor: pointer; }
+  .run-row:hover td { background: rgba(59,130,246,.07); }
+  .run-row.active td { background: rgba(59,130,246,.14); }
+
+  #toasts { position: fixed; right: 18px; bottom: 18px; display: flex; flex-direction: column; gap: 10px; z-index: 50; }
+  .toast { padding: 11px 14px; border-radius: 12px; border: 1px solid var(--border);
+           background: var(--panel-2); box-shadow: var(--shadow); font-size: 14px; max-width: 360px; }
+  .toast.ok { border-color: rgba(34,197,94,.5); }
+  .toast.warn { border-color: rgba(245,158,11,.5); }
+  .toast.err { border-color: rgba(239,68,68,.5); }
+  .ellipsis { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
+
   @media (max-width: 880px) { .two { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -148,14 +173,21 @@
     <span class="pill" id="status-pill"><span class="dot"></span><span id="status-text">загрузка…</span></span>
     <div class="toolbar">
       <button class="primary" id="run-btn" onclick="runCheck()">Проверить сейчас</button>
-      <button onclick="toggleAuto()" id="auto-btn">Автообновление: вкл</button>
-      <button class="ghost" onclick="toggleToken()" title="Токен доступа">Токен</button>
+      <button onclick="downloadReport()">Отчёт</button>
+      <button onclick="toggleAuto()" id="auto-btn">Авто: вкл</button>
+      <button class="ghost" onclick="toggleToken()">Токен</button>
     </div>
   </header>
 
-  <div id="token-row" style="display:none; margin-bottom:14px;">
+  <div class="banner" id="auth-banner" hidden>
+    <span>Нужен токен доступа (secrets.web.token).</span>
+    <button class="small" onclick="toggleToken()">Ввести токен</button>
+  </div>
+
+  <div id="token-row">
     <input type="text" id="token-input" placeholder="Bearer-токен (web.token)" autocomplete="off">
     <button onclick="saveToken()">Сохранить</button>
+    <button class="ghost" onclick="clearToken()">Сбросить</button>
     <span class="muted" id="token-state"></span>
   </div>
 
@@ -167,8 +199,8 @@
     </div>
     <div class="card">
       <div class="label">Обрывы</div>
-      <div class="value" id="disconnect" style="font-size:20px; margin-top:12px;">—</div>
-      <div class="hint" id="disconnect-hint">по нескольким попыткам</div>
+      <div class="value small" id="disconnect">—</div>
+      <div class="hint">по всем сценариям</div>
     </div>
     <div class="card">
       <div class="label">Активные сценарии</div>
@@ -177,24 +209,39 @@
     </div>
     <div class="card">
       <div class="label">Последний запуск</div>
-      <div class="value" id="last-run" style="font-size:20px; margin-top:12px;">—</div>
+      <div class="value small" id="last-run">—</div>
       <div class="hint" id="last-run-hint">—</div>
+    </div>
+    <div class="card">
+      <div class="label">Всего запусков</div>
+      <div class="value" id="runs-total">0</div>
+      <div class="hint" id="checks-total">проб: 0</div>
+    </div>
+    <div class="card">
+      <div class="label">Проблемные пробы</div>
+      <div class="value" id="severity-total" style="font-size:22px;">—</div>
+      <div class="hint">critical / warning</div>
     </div>
   </div>
 
   <div class="grid two">
     <div class="panel">
-      <h2>История уровня (последние запуски)</h2>
+      <div class="panel-head">
+        <h2>История уровня</h2>
+        <span class="spacer"></span>
+        <span class="muted" id="view-note"></span>
+        <button class="small ghost" id="back-btn" onclick="selectRun(null)" hidden>← К последнему</button>
+      </div>
       <div id="chart"><div class="empty">Нет данных для графика.</div></div>
-      <h2 style="margin-top:18px;">Сценарии последнего запуска</h2>
+      <h2 style="margin:18px 0 14px;">Сценарии <span class="muted" id="scenarios-scope"></span></h2>
       <div id="scenarios"><div class="empty">Запусков ещё не было. Нажмите «Проверить сейчас».</div></div>
     </div>
-    <div>
-      <div class="panel" style="margin-bottom:16px;">
+    <aside>
+      <div class="panel">
         <h2>Типы блокировок</h2>
         <div id="types"><span class="muted">не выявлены</span></div>
       </div>
-      <div class="panel" style="margin-bottom:16px;">
+      <div class="panel">
         <h2>Причины</h2>
         <div id="causes" class="empty">нет</div>
       </div>
@@ -202,18 +249,24 @@
         <h2>Рекомендации</h2>
         <div id="recs" class="empty">нет</div>
       </div>
-    </div>
+      <div class="panel">
+        <h2>Последние запуски</h2>
+        <div id="runs-table"><span class="muted">нет данных</span></div>
+      </div>
+    </aside>
   </div>
 
   <footer>
     TSPU Monitor <span id="version">?</span> · данные: <span id="generated">—</span> ·
     <a href="/api/summary" id="api-link">/api/summary</a> ·
+    <a href="/api/report.txt" onclick="return reportLink(event)">/api/report.txt</a> ·
     <a href="/metrics">/metrics</a>
   </footer>
 </div>
+<div id="toasts"></div>
 
 <script>
-const state = { data: null, auto: true, timer: null, refresh: 30 };
+const state = { summary: null, selected: null, selectedId: null, auto: true, timer: null, countdown: 0, refresh: 30, checking: false };
 
 function token() { return localStorage.getItem('tspu.token') || ''; }
 function headers() {
@@ -223,35 +276,64 @@ function headers() {
 }
 async function api(path, opts = {}) {
   const resp = await fetch(path, Object.assign({ headers: headers() }, opts));
-  if (resp.status === 401) throw new Error('unauthorized');
+  if (resp.status === 401) { showAuthBanner(true); throw new Error('unauthorized'); }
+  showAuthBanner(false);
   if (!resp.ok) throw new Error('HTTP ' + resp.status);
   return resp.json();
 }
 
-function levelKey(level) { return (level || 'none').toLowerCase(); }
-function badge(level, title) {
-  return '<span class="badge ' + levelKey(level) + '">' + (title || levelKey(level)) + '</span>';
+function showAuthBanner(show) {
+  document.getElementById('auth-banner').hidden = !show;
+}
+function toast(message, kind) {
+  const host = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast ' + (kind || '');
+  el.textContent = message;
+  host.appendChild(el);
+  setTimeout(() => el.remove(), 4500);
 }
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
 }
+function clip(s, n) {
+  const text = String(s == null ? '' : s);
+  return text.length > n ? text.slice(0, n - 1) + '…' : text;
+}
 function fmtTime(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
   return isNaN(d) ? iso : d.toLocaleString('ru-RU');
 }
+function fmtTimeShort(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return isNaN(d) ? iso : d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+function levelKey(level) { return (level || 'none').toLowerCase(); }
+function badge(level, title) {
+  return '<span class="badge ' + levelKey(level) + '">' + esc(title || levelKey(level)) + '</span>';
+}
 
 async function loadSummary() {
   try {
-    const data = await api('/api/summary?limit=40');
-    state.data = data;
-    state.refresh = data.web && data.web.refresh_seconds || 30;
+    const data = await api('/api/summary?limit=60');
+    state.summary = data;
+    state.refresh = (data.web && data.web.refresh_seconds) || 30;
+    state.countdown = state.refresh;
+    if (state.selectedId) {
+      try { state.selected = await api('/api/runs/' + state.selectedId); }
+      catch (e) { state.selectedId = null; state.selected = null; }
+    }
     render();
-    setStatus(data.last_run ? 'работает' : 'нет данных', data.last_run && data.last_run.max_level);
+    setStatus('работает', data.last_run && data.last_run.max_level);
   } catch (e) {
-    setStatus(e.message === 'unauthorized' ? 'нужен токен' : 'ошибка', 'none');
+    if (e.message !== 'unauthorized') {
+      setStatus('ошибка', 'none');
+      toast('Не удалось получить данные: ' + e.message, 'err');
+    }
   }
 }
 
@@ -263,13 +345,19 @@ function setStatus(text, level) {
 }
 
 function render() {
-  const d = state.data;
+  const d = state.summary;
   if (!d) return;
   const last = d.last_run;
+
   document.getElementById('version').textContent = d.version;
   document.getElementById('generated').textContent = fmtTime(d.generated_at);
   document.getElementById('scenarios-count').textContent = d.enabled.length;
   document.getElementById('scenarios-list').textContent = d.enabled.join(', ') || '—';
+  document.getElementById('runs-total').textContent = d.stats.runs;
+  document.getElementById('checks-total').textContent = 'проб: ' + d.stats.checks;
+  document.getElementById('severity-total').innerHTML =
+    '<span class="sev critical">' + d.stats.critical + '</span> / ' +
+    '<span class="sev warning">' + d.stats.warning + '</span>';
 
   if (last) {
     document.getElementById('level-score').innerHTML =
@@ -278,29 +366,45 @@ function render() {
     document.getElementById('last-run').textContent = fmtTime(last.finished);
     document.getElementById('last-run-hint').textContent =
       'длительность ' + Number(last.duration_seconds || 0).toFixed(1) + ' с · ' + last.run_id;
-    const disconnects = (last.analyses || []).filter(a => a.disconnect && a.disconnect !== 'none');
-    const levelNames = { rare: 'редкие', periodic: 'периодические', frequent: 'частые', constant: 'постоянные' };
-    const worst = disconnects.map(a => a.disconnect).sort().pop();
-    document.getElementById('disconnect').textContent = worst ? (levelNames[worst] || worst) : 'нет';
-    renderTypes(last);
-    renderCauses(last);
-    renderScenarios(last);
+    document.getElementById('disconnect').textContent =
+      d.disconnect ? d.disconnect.title : 'нет';
   }
+
   renderChart(d.history || []);
+  renderRunsTable(d.history || []);
+  renderRun(state.selected || last, Boolean(state.selected));
 }
 
-function renderTypes(last) {
+function renderRun(run, isHistorical) {
+  const note = document.getElementById('view-note');
+  const back = document.getElementById('back-btn');
+  const scope = document.getElementById('scenarios-scope');
+  note.textContent = isHistorical && run ? ('просмотр: ' + fmtTime(run.finished)) : '';
+  back.hidden = !isHistorical;
+  scope.textContent = isHistorical ? '(выбранный запуск)' : '(последний запуск)';
+  if (!run) {
+    document.getElementById('scenarios').innerHTML =
+      '<div class="empty">Запусков ещё не было. Нажмите «Проверить сейчас».</div>';
+    renderTypes(null); renderCauses(null); renderRecs(null);
+    return;
+  }
+  renderTypes(run);
+  renderCauses(run);
+  renderRecs(run);
+  renderScenarios(run);
+}
+
+function renderTypes(run) {
   const types = new Set();
-  (last.analyses || []).forEach(a => (a.type_titles || []).forEach(t => types.add(t)));
-  const el = document.getElementById('types');
-  el.innerHTML = types.size
+  ((run && run.analyses) || []).forEach(a => (a.type_titles || []).forEach(t => types.add(t)));
+  document.getElementById('types').innerHTML = types.size
     ? Array.from(types).map(t => '<span class="chip">' + esc(t) + '</span>').join('')
     : '<span class="muted">не выявлены</span>';
 }
 
-function renderCauses(last) {
+function renderCauses(run) {
   const causes = [];
-  (last.analyses || []).forEach(a => (a.causes || []).forEach(c => {
+  ((run && run.analyses) || []).forEach(a => (a.causes || []).forEach(c => {
     if (!causes.includes(c)) causes.push(c);
   }));
   document.getElementById('causes').innerHTML =
@@ -308,9 +412,9 @@ function renderCauses(last) {
                   : '<span class="muted">нет</span>';
 }
 
-function renderRecs(last) {
+function renderRecs(run) {
   const recs = [];
-  (last.analyses || []).forEach(a => (a.recommendations || []).forEach(r => {
+  ((run && run.analyses) || []).forEach(a => (a.recommendations || []).forEach(r => {
     if (!recs.includes(r)) recs.push(r);
   }));
   document.getElementById('recs').innerHTML =
@@ -318,19 +422,23 @@ function renderRecs(last) {
                 : '<span class="muted">нет</span>';
 }
 
-function renderScenarios(last) {
+function renderScenarios(run) {
   const host = document.getElementById('scenarios');
-  const items = last.analyses || [];
-  if (!items.length) { host.innerHTML = '<div class="empty">Нет данных.</div>'; return; }
+  const items = run.analyses || [];
+  if (!items.length) {
+    host.innerHTML = '<div class="empty">В запуске не было активных сценариев. Включите: tspu-monitor scenarios enable &lt;имя&gt;</div>';
+    return;
+  }
   host.innerHTML = items.map((a, idx) => {
-    const probes = (a.results || []).map(r => {
+    const probes = (a.results || []).slice(0, 60).map(r => {
       const cls = (r.severity || 'info').toLowerCase();
-      return '<tr><td>' + esc(r.probe) + '</td><td class="muted">' + esc(r.target) + '</td>' +
+      const error = r.error ? esc(clip(r.error, 70)) : '';
+      return '<tr><td>' + esc(r.probe) + '</td><td class="muted">' + esc(clip(r.target, 40)) + '</td>' +
         '<td class="sev ' + cls + '">' + esc(cls) + '</td>' +
         '<td class="num">' + (r.duration_ms != null ? Number(r.duration_ms).toFixed(0) + ' мс' : '—') + '</td>' +
-        '<td class="muted">' + esc(r.error || '') + '</td></tr>';
+        '<td class="muted" title="' + esc(r.error || '') + '">' + error + '</td></tr>';
     }).join('');
-    const evidence = (a.evidence || []).map(e => '<div>• ' + esc(e) + '</div>').join('');
+    const evidence = (a.evidence || []).map(e => '<div>• ' + esc(clip(e, 160)) + '</div>').join('');
     return '' +
       '<div class="scenario" id="scn-' + idx + '">' +
         '<div class="head" onclick="toggleScenario(' + idx + ')">' +
@@ -341,14 +449,14 @@ function renderScenarios(last) {
         '</div>' +
         '<div class="body">' +
           '<div class="kv"><div class="k">Типы</div><div>' + esc((a.type_titles || []).join('; ') || 'нет') + '</div>' +
-          '<div class="k">Обрывы</div><div>' + esc(a.disconnect_title || a.disconnect || '—') + '</div></div>' +
+          '<div class="k">Обрывы</div><div>' + esc(a.disconnect_title || a.disconnect || '—') + '</div>' +
+          '<div class="k">Проб</div><div>' + (a.results || []).length + '</div></div>' +
           (evidence ? '<div class="kv"><div class="k">Доказательства</div><div>' + evidence + '</div></div>' : '') +
           '<table><thead><tr><th>Проба</th><th>Цель</th><th>Severity</th><th class="num">Время</th><th>Ошибка</th></tr></thead>' +
           '<tbody>' + (probes || '<tr><td colspan="5" class="muted">нет проб</td></tr>') + '</tbody></table>' +
         '</div>' +
       '</div>';
   }).join('');
-  renderRecs(last);
 }
 
 function toggleScenario(idx) {
@@ -358,9 +466,12 @@ function toggleScenario(idx) {
 
 function renderChart(history) {
   const host = document.getElementById('chart');
-  const points = (history || []).map(h => ({ x: h.finished, y: Number(h.max_score) || 0 }));
-  if (points.length < 2) { host.innerHTML = '<div class="empty">Недостаточно данных (нужно ≥ 2 запусков).</div>'; return; }
-  const W = 560, H = 150, PAD = 18;
+  const points = (history || []).map(h => ({ id: h.run_id, x: h.finished, y: Number(h.max_score) || 0 }));
+  if (points.length < 2) {
+    host.innerHTML = '<div class="empty">Недостаточно данных (нужно ≥ 2 запусков).</div>';
+    return;
+  }
+  const W = 700, H = 180, PAD = 16;
   const step = (W - PAD * 2) / (points.length - 1);
   const coords = points.map((p, i) => ({
     x: PAD + i * step,
@@ -369,49 +480,126 @@ function renderChart(history) {
   }));
   const line = coords.map(c => c.x.toFixed(1) + ',' + c.y.toFixed(1)).join(' ');
   const area = PAD + ',' + (H - PAD) + ' ' + line + ' ' + (W - PAD) + ',' + (H - PAD);
-  const dots = coords.map(c => '<circle cx="' + c.x.toFixed(1) + '" cy="' + c.y.toFixed(1) +
-    '" r="3" fill="#3b82f6"><title>' + esc(fmtTime(c.p.x)) + ' — ' + c.p.y + '/100</title></circle>').join('');
+  const dots = coords.map(c =>
+    '<circle cx="' + c.x.toFixed(1) + '" cy="' + c.y.toFixed(1) +
+    '" r="4" fill="#3b82f6" stroke="#0b1220" stroke-width="1.5" style="cursor:pointer" ' +
+    'onclick="selectRun(\'' + esc(c.p.id) + '\')">' +
+    '<title>' + esc(fmtTime(c.p.x)) + ' — ' + c.p.y + '/100</title></circle>').join('');
+  const grids = [0, 25, 50, 75, 100].map(v => {
+    const y = H - PAD - (v / 100) * (H - PAD * 2);
+    return '<line x1="' + PAD + '" x2="' + (W - PAD) + '" y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) +
+           '" stroke="rgba(143,163,196,.16)" stroke-dasharray="4 6"/>';
+  }).join('');
   host.innerHTML =
-    '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
-      '<defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1">' +
-        '<stop offset="0%" stop-color="rgba(59,130,246,.45)"/>' +
-        '<stop offset="100%" stop-color="rgba(59,130,246,0)"/></linearGradient></defs>' +
-      [25, 50, 75].map(v => {
-        const y = H - PAD - (v / 100) * (H - PAD * 2);
-        return '<line x1="' + PAD + '" x2="' + (W - PAD) + '" y1="' + y + '" y2="' + y +
-               '" stroke="rgba(143,163,196,.18)" stroke-dasharray="4 6"/>';
-      }).join('') +
-      '<polygon points="' + area + '" fill="url(#g)"/>' +
-      '<polyline points="' + line + '" fill="none" stroke="#3b82f6" stroke-width="2.5"/>' +
-      dots +
-    '</svg>';
+    '<div class="chart-box">' +
+      '<div class="chart-y"><span>100</span><span>50</span><span>0</span></div>' +
+      '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
+        '<defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1">' +
+          '<stop offset="0%" stop-color="rgba(59,130,246,.45)"/>' +
+          '<stop offset="100%" stop-color="rgba(59,130,246,0)"/></linearGradient></defs>' +
+        grids +
+        '<polygon points="' + area + '" fill="url(#g)"/>' +
+        '<polyline points="' + line + '" fill="none" stroke="#3b82f6" stroke-width="2.5"/>' +
+        dots +
+      '</svg>' +
+      '<div></div>' +
+      '<div class="chart-x"><span>' + esc(fmtTimeShort(points[0].x)) + '</span>' +
+      '<span>' + esc(fmtTimeShort(points[points.length - 1].x)) + '</span></div>' +
+    '</div>';
+}
+
+function renderRunsTable(history) {
+  const host = document.getElementById('runs-table');
+  const items = (history || []).slice(-10).reverse();
+  if (!items.length) { host.innerHTML = '<span class="muted">нет данных</span>'; return; }
+  host.innerHTML =
+    '<table><thead><tr><th>Время</th><th>Уровень</th><th class="num">Баллы</th></tr></thead><tbody>' +
+    items.map(h =>
+      '<tr class="run-row' + (h.run_id === state.selectedId ? ' active' : '') + '" onclick="selectRun(\'' + esc(h.run_id) + '\')">' +
+      '<td>' + esc(fmtTime(h.finished)) + '</td>' +
+      '<td>' + badge(h.max_level) + '</td>' +
+      '<td class="num">' + Number(h.max_score) + '</td></tr>').join('') +
+    '</tbody></table>';
+}
+
+async function selectRun(runId) {
+  if (!runId) {
+    state.selected = null;
+    state.selectedId = null;
+  } else {
+    try {
+      state.selected = await api('/api/runs/' + runId);
+      state.selectedId = runId;
+    } catch (e) {
+      toast('Не удалось загрузить запуск: ' + e.message, 'err');
+      return;
+    }
+  }
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function runCheck() {
+  if (state.checking) return;
+  state.checking = true;
   const btn = document.getElementById('run-btn');
-  btn.disabled = true; btn.textContent = 'Проверяю…';
+  btn.disabled = true;
+  const started = Date.now();
+  const tick = setInterval(() => {
+    btn.textContent = 'Проверяю… ' + Math.round((Date.now() - started) / 1000) + ' с';
+  }, 500);
   try {
-    await api('/api/check', { method: 'POST', body: '{}' });
+    const record = await api('/api/check', { method: 'POST', body: '{}' });
+    state.selected = null; state.selectedId = null;
     await loadSummary();
+    toast('Проверка завершена: ' + (record.max_level || 'none') + ', ' + (record.max_score || 0) + '/100', 'ok');
   } catch (e) {
-    setStatus(e.message === 'unauthorized' ? 'нужен токен' : 'ошибка', 'none');
+    if (e.message !== 'unauthorized') toast('Проверка не удалась: ' + e.message, 'err');
   } finally {
+    clearInterval(tick);
     btn.disabled = false; btn.textContent = 'Проверить сейчас';
+    state.checking = false;
   }
+}
+
+function downloadReport() {
+  const q = token() ? ('?token=' + encodeURIComponent(token())) : '';
+  window.open('/api/report.txt' + q, '_blank');
+}
+function reportLink(event) {
+  event.preventDefault();
+  downloadReport();
+  return false;
 }
 
 function toggleAuto() {
   state.auto = !state.auto;
-  document.getElementById('auto-btn').textContent = 'Автообновление: ' + (state.auto ? 'вкл' : 'выкл');
+  state.countdown = state.refresh;
+  updateAutoButton();
   schedule();
+}
+function updateAutoButton() {
+  document.getElementById('auto-btn').textContent = state.auto
+    ? ('Авто: вкл · ' + state.countdown + ' с')
+    : 'Авто: выкл';
 }
 function schedule() {
   if (state.timer) clearInterval(state.timer);
-  if (state.auto) state.timer = setInterval(loadSummary, Math.max(10, state.refresh) * 1000);
+  if (!state.auto) return;
+  state.timer = setInterval(() => {
+    if (state.checking) return;
+    state.countdown -= 1;
+    if (state.countdown <= 0) {
+      state.countdown = state.refresh;
+      loadSummary();
+    }
+    updateAutoButton();
+  }, 1000);
 }
+
 function toggleToken() {
   const row = document.getElementById('token-row');
-  row.style.display = row.style.display === 'none' ? 'block' : 'none';
+  row.style.display = row.style.display === 'block' ? 'none' : 'block';
   document.getElementById('token-input').value = token();
   document.getElementById('token-state').textContent = token() ? 'токен сохранён' : 'токен не задан';
 }
@@ -420,9 +608,16 @@ function saveToken() {
   document.getElementById('token-state').textContent = 'сохранено';
   loadSummary();
 }
+function clearToken() {
+  localStorage.removeItem('tspu.token');
+  document.getElementById('token-input').value = '';
+  document.getElementById('token-state').textContent = 'сброшено';
+  loadSummary();
+}
 
 loadSummary();
 schedule();
+updateAutoButton();
 </script>
 </body>
 </html>

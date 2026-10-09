@@ -62,6 +62,12 @@ async def test_index_serves_dashboard(client):
     assert "TSPU Monitor" in text
     assert "Проверить сейчас" in text
     assert "/api/summary" in text
+    # Ключевые блоки новой версии.
+    assert "Последние запуски" in text
+    assert "auth-banner" in text
+    assert "/api/report.txt" in text
+    assert "renderRunsTable" in text
+    assert "[hidden]" in text  # баннер токена должен скрываться
 
 
 async def test_summary_requires_token(client):
@@ -78,10 +84,69 @@ async def test_summary_shape(client):
     resp = await client.get("/api/summary?limit=5", headers=auth())
     data = await resp.json()
     assert set(
-        ["version", "generated_at", "enabled", "web", "stats", "history", "last_run"]
+        [
+            "version",
+            "generated_at",
+            "enabled",
+            "web",
+            "stats",
+            "disconnect",
+            "history",
+            "last_run",
+        ]
     ) <= set(data)
     assert data["web"]["auth_required"] is True
     assert isinstance(data["history"], list)
+
+
+def test_worst_disconnect_order():
+    from tspu_monitor.models import (
+        Analysis,
+        BlockLevel,
+        DisconnectLevel,
+        RunRecord,
+        utc_now_iso,
+    )
+    from tspu_monitor.web import _worst_disconnect
+
+    assert _worst_disconnect(None) is None
+
+    def record(levels):
+        return RunRecord(
+            run_id="abc",
+            started=utc_now_iso(),
+            finished=utc_now_iso(),
+            duration_seconds=1.0,
+            analyses=[
+                Analysis(
+                    profile=f"p{idx}",
+                    title="t",
+                    target="x",
+                    level=BlockLevel.NONE,
+                    disconnect=level,
+                )
+                for idx, level in enumerate(levels)
+            ],
+        )
+
+    assert _worst_disconnect(record([DisconnectLevel.NONE])) is None
+    assert _worst_disconnect(record([DisconnectLevel.RARE]))["level"] == "rare"
+    worst = _worst_disconnect(
+        record([DisconnectLevel.RARE, DisconnectLevel.CONSTANT, DisconnectLevel.PERIODIC])
+    )
+    assert worst["level"] == "constant"
+    assert worst["title"]
+
+
+async def test_report_endpoint(client):
+    resp = await client.get("/api/report.txt", headers=auth())
+    assert resp.status == 200
+    assert resp.headers["Content-Type"].startswith("text/plain")
+    assert "attachment" in resp.headers.get("Content-Disposition", "")
+    text = await resp.text()
+    assert "TSPU" in text
+
+    assert (await client.get("/api/report.txt")).status == 401
 
 
 async def test_check_endpoint_runs_scenarios(client):

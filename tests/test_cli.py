@@ -69,6 +69,17 @@ def test_console_encoding_setup_safe():
     _setup_console_encoding()  # не должно бросать ни на одной платформе
 
 
+def test_global_flags_after_subcommand():
+    parser = build_parser()
+    args = parser.parse_args(["check", "--no-color", "--config-dir", "/tmp/x"])
+    assert args.no_color is True
+    assert args.config_dir == "/tmp/x"
+
+    args = parser.parse_args(["--no-color", "--config-dir", "/tmp/y", "check"])
+    assert args.no_color is True
+    assert args.config_dir == "/tmp/y"
+
+
 def test_scenarios_list_json(config_factory, capsys):
     config = config_factory(settings={"scenarios": {"enabled": ["web"]}})
     code = main(
