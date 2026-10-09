@@ -120,6 +120,7 @@ jobs:
           python -m pip install --upgrade pip pyinstaller
           python -m pip install .
           pyinstaller --noconfirm --clean --onefile --name tspu-monitor `
+            --collect-submodules tspu_monitor `
             --add-data "src/tspu_monitor/templates;tspu_monitor/templates" `
             packaging/windows_entry.py
           $version = "${{ needs.build-python.outputs.version }}"
