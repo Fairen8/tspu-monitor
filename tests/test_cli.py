@@ -35,6 +35,34 @@ def test_no_command_prints_help(capsys):
     assert "usage" in capsys.readouterr().out.lower()
 
 
+def test_menu_interactive_env(monkeypatch):
+    from tspu_monitor.cli import _menu_interactive
+
+    monkeypatch.setenv("TSPU_MENU", "1")
+    assert _menu_interactive() is True
+    monkeypatch.setenv("TSPU_MENU", "0")
+    assert _menu_interactive() is False
+
+
+def test_run_menu_exit(monkeypatch, capsys):
+    from tspu_monitor.cli import run_menu
+
+    monkeypatch.setattr("builtins.input", lambda *args: "0")
+    assert run_menu() == 0
+    out = capsys.readouterr().out
+    assert "меню" in out
+    assert "Выход" in out
+
+
+def test_run_menu_unknown_then_exit(monkeypatch, capsys):
+    from tspu_monitor.cli import run_menu
+
+    answers = iter(["что-то", "0"])
+    monkeypatch.setattr("builtins.input", lambda *args: next(answers))
+    assert run_menu() == 0
+    assert "Неизвестный пункт" in capsys.readouterr().out
+
+
 def test_scenarios_list_json(config_factory, capsys):
     config = config_factory(settings={"scenarios": {"enabled": ["web"]}})
     code = main(

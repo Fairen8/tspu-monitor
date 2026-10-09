@@ -785,20 +785,31 @@ curl -fsSL .../install.sh | bash -s -- --no-service --no-deps
 bash install.sh --uninstall --purge
 ```
 
-Windows (PowerShell; shell-скрипты и сетевые пробы **не работают** —
-только CLI, конфигурация, отчёты и дашборд):
+Windows (shell-скрипты и сетевые пробы **не работают** — только CLI,
+меню, конфигурация, отчёты и дашборд).
+
+**Проще всего — портативно, без установки:** скачайте
+`tspu-monitor-X.Y.Z-windows-x64.exe` из релиза и запустите двойным
+кликом. Откроется меню (проверка, статус, дашборд, отчёт, сценарии,
+журнал, самопроверка). Python не нужен; данные лежат рядом с exe в
+`tspu-monitor-data`, удаление — стереть exe и эту папку.
+
+Установка из исходников (для автоматизации):
 
 ```powershell
 irm https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.ps1 | iex
 ```
 
 Или `install-windows.cmd` из релиза — запуск двойным кликом (окно не
-закроется после завершения). Установщик сам поставит Python 3.11+
-(winget → python.org), выполнит 6 шагов, оставит лог
-`%TEMP%\tspu-monitor-install.log` и проверит установку. В режиме
-`irm | iex` флаги задаются переменными окружения: `TSPU_PREFIX`,
-`TSPU_VERSION`, `TSPU_WITH_WEB=1`, `TSPU_NO_TELEMETRY=1`, `TSPU_UNINSTALL=1`;
-для автоматизации — `-NoPause` / `TSPU_NO_PAUSE=1`.
+закроется после завершения). Установщик найдёт Python 3.11+ (PATH,
+`py`-лаунчер, реестр, стандартные каталоги) или поставит его без прав
+администратора; выполнит 6 шагов, оставит лог
+`%TEMP%\tspu-monitor-install.log` и проверит установку. Повторный запуск
+безопасен (конфиги сохраняются, venv проверяется), удаление —
+`-Uninstall` (чистит и PATH). В режиме `irm | iex` флаги задаются
+переменными окружения: `TSPU_PREFIX`, `TSPU_VERSION`, `TSPU_WITH_WEB=1`,
+`TSPU_NO_TELEMETRY=1`, `TSPU_UNINSTALL=1`; для автоматизации —
+`-NoPause` / `TSPU_NO_PAUSE=1`.
 
 ### 12.5. systemd
 

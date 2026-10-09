@@ -714,6 +714,107 @@ def cmd_daemon(args: argparse.Namespace, config: AppConfig) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Интерактивное меню (двойной клик на Windows)
+# ---------------------------------------------------------------------------
+
+_MENU_ITEMS: tuple[tuple[str, str], ...] = (
+    ("1", "Проверить сейчас"),
+    ("2", "Статус и последний результат"),
+    ("3", "Открыть веб-дашборд"),
+    ("4", "Сформировать отчёт"),
+    ("5", "Список сценариев"),
+    ("6", "Журнал (последние строки)"),
+    ("7", "Самопроверка окружения"),
+    ("0", "Выход"),
+)
+
+
+def _menu_interactive() -> bool:
+    """Меню вместо справки: интерактивный Windows или TSPU_MENU=1 (тесты)."""
+    if os.environ.get("TSPU_MENU") == "1":
+        return True
+    if os.environ.get("TSPU_MENU") == "0" or os.name != "nt":
+        return False
+    try:
+        return sys.stdin.isatty() and sys.stdout.isatty()
+    except (AttributeError, ValueError):
+        return False
+
+
+def _menu_start_web() -> None:
+    import threading
+
+    from .web import run_web
+
+    args = build_parser().parse_args(["web"])
+    config = _load(args)
+    host = str(config.get("web.host", "127.0.0.1"))
+    port = int(config.get("web.port", 8787))
+    problem = _check_web_access(host, config.secret("web.token"), False)
+    if problem:
+        print(f"Ошибка: {problem}")
+        return
+    thread = threading.Thread(
+        target=run_web,
+        args=(config,),
+        kwargs={"host": host, "port": port, "open_browser": True},
+        daemon=True,
+    )
+    thread.start()
+    print(f"Дашборд запущен: http://{host}:{port}/")
+    print("Он остановится, когда вы выйдете из меню.")
+
+
+def run_menu() -> int:
+    """Простое меню для запуска двойным кликом (Windows)."""
+    print(f"TSPU Monitor {__version__} — меню")
+    if os.name == "nt":
+        print(
+            "Windows: сетевые пробы не выполняются; доступны статус, "
+            "отчёты, дашборд и конфигурация."
+        )
+    while True:
+        print()
+        for key, title in _MENU_ITEMS:
+            print(f"  {key}) {title}")
+        print()
+        try:
+            choice = input("Выберите пункт: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return EXIT_OK
+        if choice in ("0", "q", "й", "выход"):
+            return EXIT_OK
+        print()
+        try:
+            if choice == "1":
+                main(["check"])
+            elif choice == "2":
+                main(["status"])
+            elif choice == "3":
+                _menu_start_web()
+            elif choice == "4":
+                main(["report"])
+            elif choice == "5":
+                main(["scenarios", "list"])
+            elif choice == "6":
+                main(["logs", "--lines", "60"])
+            elif choice == "7":
+                main(["self-test"])
+            else:
+                print("Неизвестный пункт, попробуйте ещё раз.")
+                continue
+        except KeyboardInterrupt:
+            print()
+        except Exception as exc:  # noqa: BLE001
+            print(f"Ошибка: {exc}")
+        try:
+            input("Нажмите Enter, чтобы вернуться в меню...")
+        except (EOFError, KeyboardInterrupt):
+            return EXIT_OK
+
+
+# ---------------------------------------------------------------------------
 # Точка входа
 # ---------------------------------------------------------------------------
 
@@ -722,6 +823,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     if not args.command:
+        if _menu_interactive():
+            return run_menu()
         parser.print_help()
         return EXIT_OK
     if args.command == "version":

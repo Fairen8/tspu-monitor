@@ -460,12 +460,12 @@ function Invoke-Install {
     }
     Info 'Обновляю pip (может занять до минуты)...'
     Invoke-Native 'pip (обновление)' {
-        & $venvPython -m pip install --upgrade --disable-pip-version-check --no-input pip wheel setuptools
+        & $venvPython -m pip install --upgrade --no-cache-dir --disable-pip-version-check --no-input pip wheel setuptools
     }
     Info 'Устанавливаю TSPU Monitor и зависимости (может занять 1-2 минуты)...'
     $start = [datetime]::Now
     Invoke-Native 'pip (установка пакета)' {
-        & $venvPython -m pip install --upgrade --disable-pip-version-check --no-input `
+        & $venvPython -m pip install --upgrade --no-cache-dir --disable-pip-version-check --no-input `
             --retries 3 --timeout 30 "${Prefix}[raw]"
     }
     Ok ("Зависимости установлены за {0}" -f (Elapsed $start))
