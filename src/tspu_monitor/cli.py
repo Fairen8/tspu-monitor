@@ -110,6 +110,31 @@ def _color_enabled(args: argparse.Namespace) -> bool:
     return sys.stdout.isatty()
 
 
+def _setup_console_encoding() -> None:
+    """UTF-8 для консоли Windows.
+
+    Иначе кириллица в ``--help`` и выводе падает с UnicodeEncodeError
+    (cp1252/cp866) — особенно в перенаправленном выводе и в exe.
+    """
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.kernel32.SetConsoleOutputCP(65001)
+        ctypes.windll.kernel32.SetConsoleCP(65001)
+    except Exception:  # noqa: BLE001
+        pass
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (OSError, ValueError):
+            pass
+
+
 # ---------------------------------------------------------------------------
 # Argparse
 # ---------------------------------------------------------------------------
@@ -820,6 +845,7 @@ def run_menu() -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    _setup_console_encoding()
     parser = build_parser()
     args = parser.parse_args(argv)
     if not args.command:

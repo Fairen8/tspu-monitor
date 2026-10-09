@@ -63,6 +63,12 @@ def test_run_menu_unknown_then_exit(monkeypatch, capsys):
     assert "Неизвестный пункт" in capsys.readouterr().out
 
 
+def test_console_encoding_setup_safe():
+    from tspu_monitor.cli import _setup_console_encoding
+
+    _setup_console_encoding()  # не должно бросать ни на одной платформе
+
+
 def test_scenarios_list_json(config_factory, capsys):
     config = config_factory(settings={"scenarios": {"enabled": ["web"]}})
     code = main(
