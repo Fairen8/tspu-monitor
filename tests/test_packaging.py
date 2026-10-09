@@ -115,6 +115,22 @@ def test_install_cmd_is_ascii():
     data.decode("ascii")
 
 
+def test_install_ps1_is_robust():
+    text = (ROOT / "install.ps1").read_text(encoding="utf-8")
+    for needle in (
+        "py -0p",
+        "Get-PythonCandidates",
+        "Test-PythonUsable",
+        "WaitForExit",
+        "python.org",
+        "Expand-Archive",
+        "WindowsApps",
+    ):
+        assert needle in text, f"нет {needle} в install.ps1"
+    # Окно не должно закрываться при ошибке.
+    assert "Wait-OnExit" in text
+
+
 def test_release_platform_notes():
     notes = (ROOT / "scripts" / "release_platforms.md").read_text(encoding="utf-8")
     for needle in (
