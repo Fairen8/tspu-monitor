@@ -115,6 +115,37 @@ def test_install_cmd_is_ascii():
     data.decode("ascii")
 
 
+def test_install_ps1_is_robust():
+    text = (ROOT / "install.ps1").read_text(encoding="utf-8")
+    for needle in (
+        "py -0p",
+        "Get-PythonCandidates",
+        "Test-PythonUsable",
+        "WaitForExit",
+        "python.org",
+        "Expand-Archive",
+        "WindowsApps",
+    ):
+        assert needle in text, f"нет {needle} в install.ps1"
+    # Окно не должно закрываться при ошибке.
+    assert "Wait-OnExit" in text
+
+
+def test_windows_portable_exe_pipeline():
+    entry = ROOT / "packaging" / "windows_entry.py"
+    assert entry.exists(), "нет packaging/windows_entry.py"
+    assert "TSPU_CONFIG_DIR" in entry.read_text(encoding="utf-8")
+
+    workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    for needle in ("pyinstaller", "windows_entry.py", "windows-x64.exe"):
+        assert needle in workflow, f"нет {needle} в release.yml"
+
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "windows-x64.exe" in readme
+
+
 def test_release_platform_notes():
     notes = (ROOT / "scripts" / "release_platforms.md").read_text(encoding="utf-8")
     for needle in (

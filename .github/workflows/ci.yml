@@ -211,4 +211,7 @@ jobs:
           Set-Content -Path $bad -Value "@echo off`r`necho Python 1>&2`r`nexit /b 9009"
           if (Test-PythonVersion $bad @()) { throw 'bad python must be rejected' }
           Write-Output 'bad-python-probe-ok'
+          $py = Find-Python
+          if (-not $py -or $py -notlike '*python.exe') { throw 'Find-Python failed' }
+          Write-Output "find-python-ok: $py"
           exit 0

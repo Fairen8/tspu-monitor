@@ -31,7 +31,7 @@
 #
 set -Eeuo pipefail
 
-INSTALLER_VERSION="2.2.0"
+INSTALLER_VERSION="2.2.2"
 REPO="${TSPU_REPO:-Fairen8/tspu-monitor}"
 
 # ---------------------------------------------------------------------------

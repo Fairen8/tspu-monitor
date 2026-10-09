@@ -110,6 +110,31 @@ def _color_enabled(args: argparse.Namespace) -> bool:
     return sys.stdout.isatty()
 
 
+def _setup_console_encoding() -> None:
+    """UTF-8 для консоли Windows.
+
+    Иначе кириллица в ``--help`` и выводе падает с UnicodeEncodeError
+    (cp1252/cp866) — особенно в перенаправленном выводе и в exe.
+    """
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.kernel32.SetConsoleOutputCP(65001)
+        ctypes.windll.kernel32.SetConsoleCP(65001)
+    except Exception:  # noqa: BLE001
+        pass
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (OSError, ValueError):
+            pass
+
+
 # ---------------------------------------------------------------------------
 # Argparse
 # ---------------------------------------------------------------------------
@@ -126,26 +151,35 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
     )
+
+    # Те же флаги принимаются и после подкоманды: «check --no-color» работает
+    # так же, как «--no-color check». SUPPRESS не даёт перезаписать значение,
+    # переданное до подкоманды.
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--config-dir", default=argparse.SUPPRESS)
+    common.add_argument("--log-level", default=argparse.SUPPRESS)
+    common.add_argument("--no-color", action="store_true", default=argparse.SUPPRESS)
+
     sub = parser.add_subparsers(dest="command")
 
-    p_check = sub.add_parser("check", help="Запустить проверки")
+    p_check = sub.add_parser("check", help="Запустить проверки", parents=[common])
     p_check.add_argument("profiles", nargs="*", help="Имена сценариев (по умолчанию все)")
     p_check.add_argument("--json", action="store_true", help="Вывод в JSON")
     p_check.add_argument("--samples", type=int, default=None, help="Повторов на пробу")
     p_check.add_argument("--webhook", action="store_true", help="Отправить webhook")
     p_check.add_argument("--quiet", action="store_true", help="Без вывода (только код)")
 
-    p_report = sub.add_parser("report", help="Сформировать отчёт")
+    p_report = sub.add_parser("report", help="Сформировать отчёт", parents=[common])
     p_report.add_argument("--hours", type=int, default=None, help="Окно отчёта, часов")
     p_report.add_argument("--json", action="store_true", help="JSON-отчёт в stdout")
     p_report.add_argument("--output", default=None, help="Имя файла отчёта")
     p_report.add_argument("--no-save", action="store_true", help="Не сохранять файл")
     p_report.add_argument("--send", action="store_true", help="Отправить в Telegram")
 
-    p_status = sub.add_parser("status", help="Показать состояние")
+    p_status = sub.add_parser("status", help="Показать состояние", parents=[common])
     p_status.add_argument("--json", action="store_true")
 
-    p_scen = sub.add_parser("scenarios", help="Управление сценариями")
+    p_scen = sub.add_parser("scenarios", help="Управление сценариями", parents=[common])
     scen_sub = p_scen.add_subparsers(dest="scen_action", required=True)
     p_scen_list = scen_sub.add_parser("list", help="Список сценариев")
     p_scen_list.add_argument("--json", action="store_true")
@@ -154,7 +188,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_scen_disable = scen_sub.add_parser("disable", help="Выключить сценарий")
     p_scen_disable.add_argument("name")
 
-    p_config = sub.add_parser("config", help="Конфигурация")
+    p_config = sub.add_parser("config", help="Конфигурация", parents=[common])
     cfg_sub = p_config.add_subparsers(dest="cfg_action", required=True)
     p_cfg_show = cfg_sub.add_parser("show", help="Показать settings.yaml")
     p_cfg_show.add_argument("--json", action="store_true")
@@ -165,20 +199,22 @@ def build_parser() -> argparse.ArgumentParser:
     p_cfg_set.add_argument("value")
     cfg_sub.add_parser("validate", help="Проверить конфигурацию")
 
-    p_logs = sub.add_parser("logs", help="Показать журнал")
+    p_logs = sub.add_parser("logs", help="Показать журнал", parents=[common])
     p_logs.add_argument("--lines", "-n", type=int, default=100)
     p_logs.add_argument("--file", choices=LOG_FILES, default="main.log")
 
-    p_self = sub.add_parser("self-test", help="Проверить окружение")
+    p_self = sub.add_parser("self-test", help="Проверить окружение", parents=[common])
     p_self.add_argument("--json", action="store_true")
 
-    p_daemon = sub.add_parser("daemon", help="Демон: расписание, отчёты, уведомления")
+    p_daemon = sub.add_parser(
+        "daemon", help="Демон: расписание, отчёты, уведомления", parents=[common]
+    )
     p_daemon.add_argument("--interval", type=int, default=None, help="Интервал, минут")
     p_daemon.add_argument("--no-telegram", action="store_true")
     p_daemon.add_argument("--no-webhook", action="store_true")
     p_daemon.add_argument("--web", action="store_true", help="Запустить веб-дашборд")
 
-    p_web = sub.add_parser("web", help="Веб-дашборд с REST API")
+    p_web = sub.add_parser("web", help="Веб-дашборд с REST API", parents=[common])
     p_web.add_argument("--host", default=None, help="Адрес (по умолчанию web.host)")
     p_web.add_argument("--port", type=int, default=None, help="Порт (по умолчанию web.port)")
     p_web.add_argument("--open", action="store_true", help="Открыть браузер")
@@ -188,7 +224,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Разрешить не-loopback адрес без токена (не рекомендуется)",
     )
 
-    p_tel = sub.add_parser("telemetry", help="Добровольная анонимная статистика")
+    p_tel = sub.add_parser(
+        "telemetry", help="Добровольная анонимная статистика", parents=[common]
+    )
     tel_sub = p_tel.add_subparsers(dest="tel_action", required=True)
     tel_sub.add_parser("status", help="Показать состояние")
     tel_sub.add_parser("enable", help="Включить отправку")
@@ -714,14 +752,118 @@ def cmd_daemon(args: argparse.Namespace, config: AppConfig) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Интерактивное меню (двойной клик на Windows)
+# ---------------------------------------------------------------------------
+
+_MENU_ITEMS: tuple[tuple[str, str], ...] = (
+    ("1", "Проверить сейчас"),
+    ("2", "Статус и последний результат"),
+    ("3", "Открыть веб-дашборд"),
+    ("4", "Сформировать отчёт"),
+    ("5", "Список сценариев"),
+    ("6", "Журнал (последние строки)"),
+    ("7", "Самопроверка окружения"),
+    ("0", "Выход"),
+)
+
+
+def _menu_interactive() -> bool:
+    """Меню вместо справки: интерактивный Windows или TSPU_MENU=1 (тесты)."""
+    if os.environ.get("TSPU_MENU") == "1":
+        return True
+    if os.environ.get("TSPU_MENU") == "0" or os.name != "nt":
+        return False
+    try:
+        return sys.stdin.isatty() and sys.stdout.isatty()
+    except (AttributeError, ValueError):
+        return False
+
+
+def _menu_start_web() -> None:
+    import threading
+
+    from .web import run_web
+
+    args = build_parser().parse_args(["web"])
+    config = _load(args)
+    host = str(config.get("web.host", "127.0.0.1"))
+    port = int(config.get("web.port", 8787))
+    problem = _check_web_access(host, config.secret("web.token"), False)
+    if problem:
+        print(f"Ошибка: {problem}")
+        return
+    thread = threading.Thread(
+        target=run_web,
+        args=(config,),
+        kwargs={"host": host, "port": port, "open_browser": True},
+        daemon=True,
+    )
+    thread.start()
+    print(f"Дашборд запущен: http://{host}:{port}/")
+    print("Он остановится, когда вы выйдете из меню.")
+
+
+def run_menu() -> int:
+    """Простое меню для запуска двойным кликом (Windows)."""
+    print(f"TSPU Monitor {__version__} — меню")
+    if os.name == "nt":
+        print(
+            "Windows: сетевые пробы не выполняются; доступны статус, "
+            "отчёты, дашборд и конфигурация."
+        )
+    while True:
+        print()
+        for key, title in _MENU_ITEMS:
+            print(f"  {key}) {title}")
+        print()
+        try:
+            choice = input("Выберите пункт: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return EXIT_OK
+        if choice in ("0", "q", "й", "выход"):
+            return EXIT_OK
+        print()
+        try:
+            if choice == "1":
+                main(["check"])
+            elif choice == "2":
+                main(["status"])
+            elif choice == "3":
+                _menu_start_web()
+            elif choice == "4":
+                main(["report"])
+            elif choice == "5":
+                main(["scenarios", "list"])
+            elif choice == "6":
+                main(["logs", "--lines", "60"])
+            elif choice == "7":
+                main(["self-test"])
+            else:
+                print("Неизвестный пункт, попробуйте ещё раз.")
+                continue
+        except KeyboardInterrupt:
+            print()
+        except Exception as exc:  # noqa: BLE001
+            print(f"Ошибка: {exc}")
+        try:
+            input("Нажмите Enter, чтобы вернуться в меню...")
+        except (EOFError, KeyboardInterrupt):
+            return EXIT_OK
+
+
+# ---------------------------------------------------------------------------
 # Точка входа
 # ---------------------------------------------------------------------------
 
 
 def main(argv: list[str] | None = None) -> int:
+    _setup_console_encoding()
     parser = build_parser()
     args = parser.parse_args(argv)
     if not args.command:
+        if _menu_interactive():
+            return run_menu()
         parser.print_help()
         return EXIT_OK
     if args.command == "version":

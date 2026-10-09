@@ -35,6 +35,51 @@ def test_no_command_prints_help(capsys):
     assert "usage" in capsys.readouterr().out.lower()
 
 
+def test_menu_interactive_env(monkeypatch):
+    from tspu_monitor.cli import _menu_interactive
+
+    monkeypatch.setenv("TSPU_MENU", "1")
+    assert _menu_interactive() is True
+    monkeypatch.setenv("TSPU_MENU", "0")
+    assert _menu_interactive() is False
+
+
+def test_run_menu_exit(monkeypatch, capsys):
+    from tspu_monitor.cli import run_menu
+
+    monkeypatch.setattr("builtins.input", lambda *args: "0")
+    assert run_menu() == 0
+    out = capsys.readouterr().out
+    assert "меню" in out
+    assert "Выход" in out
+
+
+def test_run_menu_unknown_then_exit(monkeypatch, capsys):
+    from tspu_monitor.cli import run_menu
+
+    answers = iter(["что-то", "0"])
+    monkeypatch.setattr("builtins.input", lambda *args: next(answers))
+    assert run_menu() == 0
+    assert "Неизвестный пункт" in capsys.readouterr().out
+
+
+def test_console_encoding_setup_safe():
+    from tspu_monitor.cli import _setup_console_encoding
+
+    _setup_console_encoding()  # не должно бросать ни на одной платформе
+
+
+def test_global_flags_after_subcommand():
+    parser = build_parser()
+    args = parser.parse_args(["check", "--no-color", "--config-dir", "/tmp/x"])
+    assert args.no_color is True
+    assert args.config_dir == "/tmp/x"
+
+    args = parser.parse_args(["--no-color", "--config-dir", "/tmp/y", "check"])
+    assert args.no_color is True
+    assert args.config_dir == "/tmp/y"
+
+
 def test_scenarios_list_json(config_factory, capsys):
     config = config_factory(settings={"scenarios": {"enabled": ["web"]}})
     code = main(

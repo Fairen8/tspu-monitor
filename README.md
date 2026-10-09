@@ -92,16 +92,25 @@ bash install.sh --uninstall
 `https://github.com/Fairen8/tspu-monitor/releases/latest/download/install-linux-macos.sh`
 (для конкретной версии добавьте `--version vX.Y.Z`).
 
-### Windows (PowerShell)
+### Windows (без установки — рекомендуется)
+
+Скачайте `tspu-monitor-X.Y.Z-windows-x64.exe` со страницы
+[релиза](https://github.com/Fairen8/tspu-monitor/releases) и запустите
+двойным кликом: откроется меню (проверка, статус, дашборд, отчёт,
+сценарии, журнал, самопроверка). Python не нужен, в системе ничего не
+устанавливается; все данные лежат рядом с exe в папке
+`tspu-monitor-data` — удалили папку, и следов не осталось.
+
+### Windows (установка из исходников, для автоматизации)
 
 ```powershell
 irm https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.ps1 | iex
 ```
 
-Либо скачайте `install-windows.cmd` со страницы [релиза](https://github.com/Fairen8/tspu-monitor/releases)
-и запустите **двойным кликом** — окно останется открытым, установщик сам
-поставит Python 3.11+ (winget, при необходимости — установщик python.org)
-и всё настроит.
+Либо `install-windows.cmd` из релиза двойным кликом — окно остаётся
+открытым, установщик сам найдёт Python 3.11+ (или поставит его без прав
+администратора) и всё настроит. При переустановке заменит файлы, конфиги
+сохранит; удаление — `-Uninstall` (чистит и PATH).
 
 В режиме `irm | iex` параметры задаются переменными окружения:
 `TSPU_PREFIX`, `TSPU_VERSION`, `TSPU_WITH_WEB=1`, `TSPU_NO_TELEMETRY=1`,
@@ -109,9 +118,9 @@ irm https://raw.githubusercontent.com/Fairen8/tspu-monitor/main/install.ps1 | ie
 
 > **Windows:** shell-скрипты (`install.sh`, `deploy/*`) и сетевые пробы
 > **не работают** — нужны Linux-утилиты (`ping -M`, `traceroute`, `nmap`,
-> `dig`) и `CAP_NET_RAW`. `install.ps1` даёт только CLI, конфигурацию,
-> отчёты и дашборд. Для диагностики используйте Linux: Docker, LXC,
-> `.deb` или `install.sh`.
+> `dig`) и `CAP_NET_RAW`. Портативный exe и `install.ps1` дают CLI,
+> конфигурацию, отчёты и дашборд. Для диагностики используйте Linux:
+> Docker, LXC, `.deb` или `install.sh`.
 
 ### Docker
 

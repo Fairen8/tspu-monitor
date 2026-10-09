@@ -2,8 +2,9 @@
 
 | Артефакт | Платформа | Установка / примечание |
 |---|---|---|
+| `tspu-monitor-X.Y.Z-windows-x64.exe` | **Windows** | портативный: скачал, запустил двойным кликом, работает меню; без установки, Python не нужен, данные рядом в `tspu-monitor-data` |
 | `install-linux-macos.sh` | **Linux / macOS** | установщик одной командой; **в Windows НЕ работает** |
-| `install-windows.ps1` | **Windows** | PowerShell; CLI, конфигурация, отчёты, дашборд (без сетевых проб); сам ставит Python 3.11+ |
+| `install-windows.ps1` | **Windows** | PowerShell; CLI, конфигурация, отчёты, дашборд (без сетевых проб); сам находит/ставит Python 3.11+ |
 | `install-windows.cmd` | **Windows** | запуск двойным кликом (окно не закроется; вызывает `install-windows.ps1`) |
 | `tspu-monitor_X.Y.Z_all.deb` | **Debian / Ubuntu (Linux)** | `sudo apt install ./tspu-monitor_X.Y.Z_all.deb` |
 | `tspu-monitor-X.Y.Z.pyz` | **любая ОС** с Python 3.11+ | переносимый; сетевые пробы — Linux/macOS |
@@ -23,6 +24,9 @@
 * `install-windows.ps1` / `install-windows.cmd` ставят только CLI, работу
   с конфигурацией, отчёты и веб-дашборд (просмотр данных); окно PowerShell
   остаётся открытым (пауза), для скриптов есть `-NoPause`;
+* альтернатива без установки — портативный `…-windows-x64.exe`: двойной
+  клик открывает меню, ничего доустанавливать не требуется, следы —
+  только папка `tspu-monitor-data` рядом с exe;
 * для реальных проверок используйте Linux: Docker, LXC (Proxmox),
   `.deb` или `install-linux-macos.sh`.
 
@@ -34,6 +38,6 @@
 | **Linux** (RHEL / Fedora / Rocky / Alma) | `install-linux-macos.sh` |
 | **Linux** (Alpine / Arch / openSUSE) | `install-linux-macos.sh` |
 | **macOS** | `install-linux-macos.sh` (Homebrew) |
-| **Windows** | `install-windows.cmd` (двойной клик) или `install-windows.ps1` |
+| **Windows** | `…-windows-x64.exe` (двойной клик, ничего не ставит) или `install-windows.cmd` |
 | Proxmox LXC | `deploy/lxc/proxmox-create.sh` |
 | Любая с Docker | Docker-образ |
