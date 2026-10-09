@@ -4,8 +4,10 @@
 
 .DESCRIPTION
     Устанавливает CLI в %LOCALAPPDATA%\TSPU-Monitor: venv, зависимости и
-    команду tspu-monitor. Если Python >= 3.11 не найден — пытается
-    установить его через winget, затем через установщик python.org.
+    команду tspu-monitor. Python >= 3.11 ищется в PATH, у py-лаунчера,
+    в реестре и стандартных каталогах; если не найден — ставится
+    автоматически с python.org (без прав администратора), winget —
+    запасной вариант.
 
     Сетевые пробы ориентированы на Linux; на Windows доступны CLI,
     конфигурация, отчёты и веб-дашборд.
@@ -38,7 +40,7 @@ $WithWeb = $WithWeb -or ($env:TSPU_WITH_WEB -eq '1')
 $NoTelemetry = $NoTelemetry -or ($env:TSPU_NO_TELEMETRY -eq '1')
 $Uninstall = $Uninstall -or ($env:TSPU_UNINSTALL -eq '1')
 
-$InstallerVersion = '2.2.1'
+$InstallerVersion = '2.2.2'
 $script:Step = 0
 $LogFile = Join-Path $env:TEMP 'tspu-monitor-install.log'
 try { Start-Transcript -Path $LogFile -Force | Out-Null } catch { $LogFile = '' }
@@ -105,55 +107,151 @@ function Test-PythonVersion([string]$exe, [string[]]$extra) {
     }
 }
 
-function Find-Python {
-    $candidates = @(
-        'py -3.13', 'py -3.12', 'py -3.11', 'python3.13', 'python3.12',
-        'python3.11', 'python', 'python3'
+function Get-PythonCandidates {
+    # Все известные установки Python, свежие версии первыми. PATH не
+    # обязателен: py-лаунчер, реестр и стандартные каталоги находятся
+    # даже если Explorer ещё не подхватил обновлённый PATH.
+    $found = [System.Collections.Generic.List[object]]::new()
+
+    $launchers = @(
+        (Join-Path $env:LOCALAPPDATA 'Programs\Python\Launcher\py.exe'),
+        'C:\Windows\py.exe'
     )
-    foreach ($candidate in $candidates) {
-        $parts = $candidate.Split(' ')
-        $command = Get-Command $parts[0] -ErrorAction SilentlyContinue
-        if (-not $command) { continue }
-        # Заглушка Microsoft Store: запуск открывает Store и пишет в stderr.
-        if ($command.Source -and $command.Source -like '*\WindowsApps\*') { continue }
-        $extra = @()
-        if ($parts.Count -gt 1) { $extra = $parts[1..($parts.Count - 1)] }
-        if (Test-PythonVersion $parts[0] $extra) { return ,@($parts[0], $extra) }
+    $command = Get-Command py -ErrorAction SilentlyContinue
+    if ($command -and $command.Source) { $launchers += $command.Source }
+    foreach ($launcher in ($launchers | Where-Object { $_ } | Select-Object -Unique)) {
+        if (-not (Test-Path -LiteralPath $launcher)) { continue }
+        $lines = @()
+        try { $lines = @(& $launcher -0p 2>&1) } catch { }
+        foreach ($line in $lines) {
+            $text = [string]$line
+            if ($text -match '^\s*(?:-V:)?(\d+)\.(\d+)(?:-\d+)?\s+\*?\s*(.+python\.exe)\s*$') {
+                $path = $Matches[3].Trim()
+                if (Test-Path -LiteralPath $path) {
+                    $found.Add([pscustomobject]@{
+                        Version = [version]::new([int]$Matches[1], [int]$Matches[2])
+                        Path    = $path
+                    })
+                }
+            }
+        }
+    }
+
+    foreach ($base in @(
+        'HKCU:\SOFTWARE\Python\PythonCore',
+        'HKLM:\SOFTWARE\Python\PythonCore',
+        'HKLM:\SOFTWARE\WOW6432Node\Python\PythonCore'
+    )) {
+        foreach ($key in (Get-ChildItem -LiteralPath $base -ErrorAction SilentlyContinue)) {
+            if ($key.PSChildName -notmatch '^(\d+)\.(\d+)$') { continue }
+            $major = [int]$Matches[1]
+            $minor = [int]$Matches[2]
+            $install = Get-ItemProperty `
+                -LiteralPath (Join-Path $key.PSPath 'InstallPath') `
+                -ErrorAction SilentlyContinue
+            if (-not $install) { continue }
+            $path = $null
+            if ($install.PSObject.Properties.Name -contains 'ExecutablePath') {
+                $path = $install.ExecutablePath
+            }
+            if (-not $path) {
+                $default = $install.PSObject.Properties['(default)']
+                if ($default -and $default.Value) {
+                    $path = Join-Path ([string]$default.Value) 'python.exe'
+                }
+            }
+            if ($path -and (Test-Path -LiteralPath $path)) {
+                $found.Add([pscustomobject]@{
+                    Version = [version]::new($major, $minor)
+                    Path    = $path
+                })
+            }
+        }
+    }
+
+    $globs = @(
+        (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python3*\python.exe'),
+        'C:\Python3*\python.exe',
+        'C:\Program Files\Python3*\python.exe',
+        'C:\Program Files (x86)\Python3*\python.exe'
+    )
+    foreach ($pattern in $globs) {
+        foreach ($item in (Get-Item -Path $pattern -ErrorAction SilentlyContinue)) {
+            $found.Add([pscustomobject]@{ Version = [version]'0.0'; Path = $item.FullName })
+        }
+    }
+
+    foreach ($name in @('python3.13', 'python3.12', 'python3.11', 'python', 'python3')) {
+        $command = Get-Command $name -ErrorAction SilentlyContinue
+        # Заглушка Microsoft Store: запуск пишет в stderr и открывает Store.
+        if ($command -and $command.Source -and $command.Source -notlike '*\WindowsApps\*') {
+            $found.Add([pscustomobject]@{ Version = [version]'0.0'; Path = $command.Source })
+        }
+    }
+
+    return ($found | Sort-Object Version -Descending | Select-Object -ExpandProperty Path -Unique)
+}
+
+function Find-Python {
+    foreach ($exe in (Get-PythonCandidates)) {
+        if (Test-PythonVersion $exe @()) { return $exe }
     }
     return $null
 }
 
 function Install-Python {
-    if (Get-Command winget -ErrorAction SilentlyContinue) {
-        Info 'Python >= 3.11 не найден — устанавливаю через winget'
-        try {
-            Invoke-Native 'winget install Python' {
-                winget install --id Python.Python.3.12 --silent --disable-interactivity `
-                    --accept-package-agreements --accept-source-agreements
-            }
-            Update-SessionPath
-        } catch {
-            Warn "winget не смог установить Python: $($_.Exception.Message)"
-        }
-    } else {
-        Warn 'winget недоступен — пробую установщик python.org'
-    }
+    Warn 'Python >= 3.11 не найден — установлю автоматически (без прав администратора)'
 
     $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'amd64' }
     $url = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-$arch.exe"
     $installer = Join-Path $env:TEMP 'tspu-python-3.12.8.exe'
-    Info "Скачиваю Python: $url"
+    Info "Скачиваю Python 3.12.8 (~25 МБ): $url"
     try {
         Invoke-WebRequest -Uri $url -OutFile $installer -UseBasicParsing
-        Start-Process -FilePath $installer -Wait -ArgumentList @(
+        Info 'Тихая установка, 1-3 минуты (прогресс не отображается)...'
+        $process = Start-Process -FilePath $installer -PassThru -ArgumentList @(
             '/quiet', 'InstallAllUsers=0', 'PrependPath=1',
             'Include_pip=1', 'Include_launcher=1'
         )
-        Remove-Item -Force $installer -ErrorAction SilentlyContinue
-        Update-SessionPath
+        if (-not $process.WaitForExit(900000)) {
+            try { $process.Kill() } catch { }
+            Warn 'Установщик python.org не завершился за 15 минут'
+        } elseif ($process.ExitCode -ne 0) {
+            Warn "Установщик python.org вернул код $($process.ExitCode)"
+        } else {
+            Remove-Item -Force $installer -ErrorAction SilentlyContinue
+            Update-SessionPath
+            return
+        }
     } catch {
-        Warn "Автоустановка Python не удалась: $($_.Exception.Message)"
+        Warn "Не удалось установить Python с python.org: $($_.Exception.Message)"
+    } finally {
+        Remove-Item -Force $installer -ErrorAction SilentlyContinue
     }
+
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        Info 'Пробую winget (вывод winget идёт ниже, может занять до 10 минут)...'
+        try {
+            $process = Start-Process -FilePath 'winget' -NoNewWindow -PassThru -ArgumentList @(
+                'install', '--id', 'Python.Python.3.12', '--exact', '--silent',
+                '--disable-interactivity', '--accept-package-agreements',
+                '--accept-source-agreements'
+            )
+            if (-not $process.WaitForExit(600000)) {
+                try { $process.Kill() } catch { }
+                Warn 'winget не ответил за 10 минут'
+            } elseif ($process.ExitCode -ne 0) {
+                Warn "winget завершился с кодом $($process.ExitCode)"
+            } else {
+                Update-SessionPath
+                return
+            }
+        } catch {
+            Warn "winget не сработал: $($_.Exception.Message)"
+        }
+    }
+
+    Warn 'Установите Python вручную (галочка Add to PATH): https://www.python.org/downloads/windows/'
 }
 
 function Uninstall-Tspu {
@@ -178,18 +276,16 @@ function Invoke-Install {
     if ($Uninstall) { Uninstall-Tspu; return }
 
     Step 'Поиск Python (>= 3.11)'
-    $python = Find-Python
-    if (-not $python) {
+    $pyExe = Find-Python
+    if (-not $pyExe) {
         Install-Python
-        $python = Find-Python
+        $pyExe = Find-Python
     }
-    if (-not $python) {
-        Fail 'Python >= 3.11 недоступен. Установите вручную: winget install Python.Python.3.12, затем повторите.'
+    if (-not $pyExe) {
+        Fail 'Python >= 3.11 недоступен. Установите вручную: https://www.python.org/downloads/windows/ (галочка Add to PATH), затем повторите.'
     }
-    $pyExe = $python[0]
-    $pyArgs = $python[1]
-    $pyVersion = (Invoke-Native 'python --version' { & $pyExe @pyArgs --version } -Capture) -join ' '
-    Info ("Python: {0}" -f $pyVersion)
+    $pyVersion = (Invoke-Native 'python --version' { & $pyExe --version } -Capture) -join ' '
+    Info ("Python: {0} ({1})" -f $pyVersion, $pyExe)
 
     Step 'Получение исходников'
     $src = Get-TspuSources
@@ -202,7 +298,7 @@ function Invoke-Install {
     Step 'Установка приложения'
     if (-not (Test-Path (Join-Path $Venv 'Scripts\python.exe'))) {
         Info "Создаю venv: $Venv"
-        Invoke-Native 'Создание venv' { & $pyExe @pyArgs -m venv $Venv }
+        Invoke-Native 'Создание venv' { & $pyExe -m venv $Venv }
     }
     $venvPython = Join-Path $Venv 'Scripts\python.exe'
     Info 'Устанавливаю зависимости (pip)'

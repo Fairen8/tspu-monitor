@@ -910,7 +910,8 @@ pytest -q
 | `scapy import failed` | `pip install "tspu-monitor[raw]"` |
 | Неизвестный сценарий | проверьте имя: `tspu-monitor scenarios list` |
 | Нет доступа к VPN-серверу | контейнер вне нужной сети/VLAN; `network_mode: host` для Docker |
-| Windows: «Установка прервана: Python» | сработала заглушка Python из Microsoft Store (`WindowsApps`). Обновите `install.ps1`/`install-windows.cmd` до 2.2.1+ (установщик её пропускает и ставит Python сам) либо установите Python с python.org |
+| Windows: «Установка прервана: Python» | сработала заглушка Python из Microsoft Store (`WindowsApps`). Обновите `install.ps1`/`install-windows.cmd` до 2.2.1+; с 2.2.2 установщик ищет Python в PATH, у `py`-лаунчера, в реестре и стандартных каталогах, а если не нашёл — ставит сам (python.org без прав администратора, winget — запасной) |
+| Winget «висит» без прогресса | с 2.2.2 сначала тихий установщик python.org; у winget вывод идёт в окно и стоит лимит 10 минут. Закройте зависшее окно и запустите установщик заново |
 
 Журналы: `main.log` (общий), `probes.log` (пробы), `telegram.log`
 (бот). Просмотр: `tspu-monitor logs --file probes.log -n 200`.
