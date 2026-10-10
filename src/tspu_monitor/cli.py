@@ -557,9 +557,12 @@ def cmd_config_import(args: argparse.Namespace, config: AppConfig) -> int:
     targets = config.secrets.setdefault("targets", {})
     print(f"Формат: {result.protocol}")
     for key, value in result.targets.items():
-        old = targets.get(key)
-        arrow = f"{old} -> {value}" if old not in (None, "", 0) and old != value else str(value)
-        print(f"  {key}: {arrow}")
+        # Старые значения из secrets.yaml не печатаем (могут содержать
+        # чувствительные данные — и это ловит CodeQL).
+        if targets.get(key) in (None, "", 0):
+            print(f"  {key}: {value}")
+        else:
+            print(f"  {key}: {value}  (обновлено, значение было задано ранее)")
     for note in result.notes:
         print(f"  · {note}")
     for warning in result.warnings:
