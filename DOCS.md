@@ -379,7 +379,7 @@ tspu-monitor check [профили…] [--json] [--samples N] [--webhook] [--qui
 ### 7.2. `report`
 
 ```
-tspu-monitor report [--hours N] [--json] [--output FILE] [--no-save] [--send]
+tspu-monitor report [--hours N] [--json] [--output FILE] [--no-save] [--send] [--view]
 ```
 
 * `--hours` — окно отчёта (по умолчанию `scheduler.report_interval_hours`).
@@ -387,6 +387,9 @@ tspu-monitor report [--hours N] [--json] [--output FILE] [--no-save] [--send]
 * `--output` — имя файла (по умолчанию `report-YYYYmmdd-HHMMSS.txt`).
 * `--no-save` — только stdout.
 * `--send` — отправить TXT в Telegram (нужен настроенный `secrets.telegram`).
+* `--view` — постраничный просмотр в консоли: Enter/пробел — далее,
+  `b` — назад, `q` — выход. В меню exe отчёт открывается так же;
+  в пайпах/CI печатается целиком (`TSPU_NO_PAGER=1` отключает пейджер).
 
 ### 7.3. `status`
 
@@ -404,6 +407,7 @@ tspu-monitor config show [--json]
 tspu-monitor config get KEY
 tspu-monitor config set KEY VALUE
 tspu-monitor config validate
+tspu-monitor config import FILE_OR_URI [--dry-run]
 ```
 
 `set` работает только с whitelist-ключами:
@@ -428,6 +432,27 @@ tspu-monitor config validate
 | `webhook.min_level` | str |
 | `reports.include_logs` | bool |
 | `reports.max_log_lines` | int |
+
+#### Импорт конфигов VPN — `config import`
+
+Вместо ручного заполнения `secrets.yaml` укажите файл клиента или URI —
+установщик сам извлечёт сервер, порт и технические параметры:
+
+```bash
+tspu-monitor config import wg0.conf          # WireGuard / AmneziaWG
+tspu-monitor config import client.ovpn       # OpenVPN
+tspu-monitor config import config.json       # Xray/v2ray или shadowsocks-libev
+tspu-monitor config import 'ss://YWVz...@1.2.3.4:8388#node'
+tspu-monitor config import 'vless://uuid@host:443?security=reality&sni=www.microsoft.com'
+tspu-monitor config import 'trojan://pass@host:443?sni=cover.example'
+tspu-monitor config import 'vmess://<base64>'
+```
+
+Что попадает в `secrets.yaml` → `targets`: адрес/порт, публичный ключ
+(WireGuard/Amnezia), протокол (OpenVPN), метод шифрования (Shadowsocks),
+SNI/Reality-домен (Xray). **Приватные ключи, пароли и UUID не
+сохраняются.** `--dry-run` показывает результат без записи; в меню exe
+есть пункт «Импортировать конфиг VPN».
 
 ### 7.5. `logs`
 
@@ -463,6 +488,24 @@ tspu-monitor web [--host HOST] [--port PORT] [--open] [--allow-remote-no-auth]
 Не-loopback адрес без `secrets.web.token` запрещён; обойти проверку можно
 флагом `--allow-remote-no-auth` (не рекомендуется). `--open` открывает
 браузер.
+
+### 7.9. `cleanup` — самоочистка
+
+```
+tspu-monitor cleanup [--purge] [--yes]
+```
+
+Удаляет всё, что накопило приложение: данные (`data/`: прогоны,
+`telemetry.json`), отчёты (`reports/`), журналы (`logs/`). Показывает
+список с размерами и спрашивает подтверждение.
+
+* `--purge` — удалить и конфигурацию (`settings.yaml`, `secrets.yaml`);
+* `--yes` / `-y` — без подтверждения (для скриптов).
+
+В меню exe есть пункт «Самоочистка». Для установленного приложения
+удалите и саму установку: `install.ps1 -Uninstall` (Windows) или
+`install.sh --uninstall --purge` (Linux/macOS) — они чистят PATH, venv и
+systemd-юнит.
 
 ---
 
@@ -523,10 +566,10 @@ tspu-monitor web [--host HOST] [--port PORT] [--open] [--allow-remote-no-auth]
 | `telegram.api_base` | адрес Bot API (зеркало) |
 | `webhook.token` | Bearer-токен для webhook |
 | `web.token` | токен веб-дашборда (обязателен вне loopback) |
-| `targets.wireguard_server/port` | WireGuard |
-| `targets.amnezia_server/port` | AmneziaWG |
-| `targets.openvpn_server/port` | OpenVPN |
-| `targets.shadowsocks_server/port` | Shadowsocks |
+| `targets.wireguard_server/port/public_key` | WireGuard |
+| `targets.amnezia_server/port/public_key` | AmneziaWG |
+| `targets.openvpn_server/port/proto` | OpenVPN |
+| `targets.shadowsocks_server/port/method` | Shadowsocks |
 | `targets.xray_server/port/reality_sni` | XRay/Reality |
 
 Пустой target = сценарий пропускается. Права на файл: `chmod 600`.
@@ -1068,5 +1111,5 @@ DEBUG-строка (`tspu.telemetry`). Отправка не задержива�
 
 ---
 
-*Документация соответствует TSPU Monitor 2.2.4. При изменении кода
+*Документация соответствует TSPU Monitor 2.2.5. При изменении кода
 обновляйте её вместе с функциональностью. Лицензия — [MIT](LICENSE).*

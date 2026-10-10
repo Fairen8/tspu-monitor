@@ -80,6 +80,51 @@ def test_global_flags_after_subcommand():
     assert args.config_dir == "/tmp/y"
 
 
+def test_view_text_non_interactive_prints_all(capsys):
+    from tspu_monitor.cli import view_text
+
+    view_text("строка1\nстрока2", interactive=False)
+    assert "строка1" in capsys.readouterr().out
+
+
+def test_view_text_paginates(capsys):
+    from tspu_monitor.cli import view_text
+
+    answers = iter(["", "q"])
+    view_text(
+        "1\n2\n3\n4",
+        interactive=True,
+        page_size=2,
+        reader=lambda _prompt="": next(answers),
+    )
+    out = capsys.readouterr().out
+    assert "страница 1/2" in out
+    assert "страница 2/2" in out
+    assert "4" in out
+
+
+def test_report_view_flag(config_factory, capsys):
+    config = config_factory()
+    code = main(
+        ["--config-dir", str(config.config_dir), "report", "--view", "--no-save"]
+    )
+    assert code == 0
+    assert capsys.readouterr().out.strip()
+
+
+def test_cleanup_command(config_factory, capsys):
+    config = config_factory()
+    data_dir = config.config_dir.parent / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "run-aaaa.json").write_text("{}", encoding="utf-8")
+
+    code = main(["--config-dir", str(config.config_dir), "cleanup", "--yes"])
+    assert code == 0
+    assert not data_dir.exists()
+    assert config.settings_path.exists()
+    assert "удалено" in capsys.readouterr().out
+
+
 def test_scenarios_list_json(config_factory, capsys):
     config = config_factory(settings={"scenarios": {"enabled": ["web"]}})
     code = main(

@@ -437,3 +437,147 @@ def test_no_findings_means_no_block():
     assert analysis.level == BlockLevel.NONE
     assert analysis.score == 0
     assert analysis.types == []
+
+
+# ---------------------------------------------------------------------------
+# Новые технические правила: traceroute, raw TTL, сертификаты
+# ---------------------------------------------------------------------------
+
+
+def test_trace_wall_detected():
+    analysis = diagnose(
+        res(
+            "icmp.trace",
+            target="blocked.example",
+            success=False,
+            severity=Severity.WARNING,
+            data={
+                "host": "blocked.example",
+                "max_consecutive_star_hops": 5,
+                "reachable": False,
+            },
+            error="Подозрительное молчание узлов в маршруте (возможен middlebox)",
+        )
+    )
+    assert BlockType.ICMP_BLOCK in analysis.types
+    assert analysis.score >= 12
+
+
+def test_trace_skipped_ignored():
+    analysis = diagnose(
+        res(
+            "icmp.trace",
+            success=False,
+            data={
+                "skipped": True,
+                "host": "x",
+                "max_consecutive_star_hops": 9,
+                "reachable": False,
+            },
+        )
+    )
+    assert BlockType.ICMP_BLOCK not in analysis.types
+    assert analysis.score == 0
+
+
+def test_raw_ttl_differential_detects_injection():
+    analysis = diagnose(
+        res(
+            "raw.ttl",
+            success=True,
+            data={"host": "srv", "reply_kind": "synack", "reply_ttl": 55},
+        ),
+        res(
+            "raw.ttl",
+            success=False,
+            severity=Severity.CRITICAL,
+            data={"host": "srv", "reply_kind": "rst", "reply_ttl": 250},
+            error="RST с подозрительно низкой задержкой (инъекция?)",
+        ),
+    )
+    assert BlockType.RST_INJECTION in analysis.types
+    assert any("TTL" in e for e in analysis.evidence)
+
+
+def test_raw_ttl_close_values_no_false_positive():
+    analysis = diagnose(
+        res(
+            "raw.ttl",
+            success=True,
+            data={"host": "srv", "reply_kind": "synack", "reply_ttl": 55},
+        ),
+        res(
+            "raw.ttl",
+            success=False,
+            severity=Severity.WARNING,
+            data={"host": "srv", "reply_kind": "rst", "reply_ttl": 58},
+            error="получен RST",
+        ),
+    )
+    assert BlockType.RST_INJECTION not in analysis.types
+
+
+def test_tls_cert_verify_error():
+    analysis = diagnose(
+        res(
+            "tls.handshake",
+            success=True,
+            data={
+                "host": "srv.example",
+                "role": "real",
+                "verify": "error",
+                "sni": "srv.example",
+            },
+        )
+    )
+    assert BlockType.TLS_INTERFERENCE in analysis.types
+
+
+def test_tls_cert_verify_ok_no_finding():
+    analysis = diagnose(
+        res(
+            "tls.handshake",
+            success=True,
+            data={"host": "srv", "role": "real", "verify": "OK"},
+        )
+    )
+    assert BlockType.TLS_INTERFERENCE not in analysis.types
+    assert analysis.score == 0
+
+
+def test_dns_fake_ip_downgraded():
+    analysis = diagnose(
+        res(
+            "dns.resolve",
+            success=True,
+            data={"host": "ya.ru", "fake_ip": True, "system_ok": True},
+        )
+    )
+    assert BlockType.DNS_SPOOF not in analysis.types
+    assert analysis.score <= 2
+
+
+def test_icmp_dead_hosts_aggregated():
+    analysis = diagnose(
+        res(
+            "icmp.ping",
+            success=False,
+            severity=Severity.CRITICAL,
+            data={"host": "a.ru", "packet_loss_percent": 100},
+        ),
+        res(
+            "icmp.ping",
+            success=False,
+            severity=Severity.CRITICAL,
+            data={"host": "b.ru", "packet_loss_percent": 100},
+        ),
+        res(
+            "icmp.ping",
+            success=False,
+            severity=Severity.CRITICAL,
+            data={"host": "c.ru", "packet_loss_percent": 100},
+        ),
+    )
+    # Одно агрегированное правило вместо трёх отдельных.
+    assert BlockType.ICMP_BLOCK in analysis.types
+    assert analysis.score <= 8
