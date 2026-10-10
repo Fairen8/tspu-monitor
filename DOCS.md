@@ -379,7 +379,7 @@ tspu-monitor check [профили…] [--json] [--samples N] [--webhook] [--qui
 ### 7.2. `report`
 
 ```
-tspu-monitor report [--hours N] [--json] [--output FILE] [--no-save] [--send]
+tspu-monitor report [--hours N] [--json] [--output FILE] [--no-save] [--send] [--view]
 ```
 
 * `--hours` — окно отчёта (по умолчанию `scheduler.report_interval_hours`).
@@ -387,6 +387,9 @@ tspu-monitor report [--hours N] [--json] [--output FILE] [--no-save] [--send]
 * `--output` — имя файла (по умолчанию `report-YYYYmmdd-HHMMSS.txt`).
 * `--no-save` — только stdout.
 * `--send` — отправить TXT в Telegram (нужен настроенный `secrets.telegram`).
+* `--view` — постраничный просмотр в консоли: Enter/пробел — далее,
+  `b` — назад, `q` — выход. В меню exe отчёт открывается так же;
+  в пайпах/CI печатается целиком (`TSPU_NO_PAGER=1` отключает пейджер).
 
 ### 7.3. `status`
 
@@ -485,6 +488,24 @@ tspu-monitor web [--host HOST] [--port PORT] [--open] [--allow-remote-no-auth]
 Не-loopback адрес без `secrets.web.token` запрещён; обойти проверку можно
 флагом `--allow-remote-no-auth` (не рекомендуется). `--open` открывает
 браузер.
+
+### 7.9. `cleanup` — самоочистка
+
+```
+tspu-monitor cleanup [--purge] [--yes]
+```
+
+Удаляет всё, что накопило приложение: данные (`data/`: прогоны,
+`telemetry.json`), отчёты (`reports/`), журналы (`logs/`). Показывает
+список с размерами и спрашивает подтверждение.
+
+* `--purge` — удалить и конфигурацию (`settings.yaml`, `secrets.yaml`);
+* `--yes` / `-y` — без подтверждения (для скриптов).
+
+В меню exe есть пункт «Самоочистка». Для установленного приложения
+удалите и саму установку: `install.ps1 -Uninstall` (Windows) или
+`install.sh --uninstall --purge` (Linux/macOS) — они чистят PATH, venv и
+systemd-юнит.
 
 ---
 

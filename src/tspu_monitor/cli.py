@@ -176,6 +176,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_report.add_argument("--output", default=None, help="Имя файла отчёта")
     p_report.add_argument("--no-save", action="store_true", help="Не сохранять файл")
     p_report.add_argument("--send", action="store_true", help="Отправить в Telegram")
+    p_report.add_argument(
+        "--view", action="store_true", help="Постраничный просмотр в консоли"
+    )
 
     p_status = sub.add_parser("status", help="Показать состояние", parents=[common])
     p_status.add_argument("--json", action="store_true")
@@ -241,6 +244,16 @@ def build_parser() -> argparse.ArgumentParser:
     tel_sub.add_parser("enable", help="Включить отправку")
     tel_sub.add_parser("disable", help="Выключить отправку")
     tel_sub.add_parser("test", help="Отправить тестовое событие")
+
+    p_clean = sub.add_parser(
+        "cleanup", help="Самоочистка: удалить данные/отчёты/логи", parents=[common]
+    )
+    p_clean.add_argument(
+        "--purge", action="store_true", help="Удалить и конфигурацию (settings/secrets)"
+    )
+    p_clean.add_argument(
+        "--yes", "-y", action="store_true", help="Без подтверждения"
+    )
 
     sub.add_parser("version", help="Версия")
     return parser
@@ -337,6 +350,56 @@ def cmd_check(args: argparse.Namespace, config: AppConfig) -> int:
     return exit_code_for_level(record.max_level)
 
 
+def view_text(
+    text: str,
+    *,
+    interactive: bool | None = None,
+    page_size: int | None = None,
+    reader: Any = None,
+) -> None:
+    """Показать текст постранично (Enter — далее, b — назад, q — выход).
+
+    В неинтерактивном режиме (пайп, CI, ``TSPU_NO_PAGER=1``) печатает всё.
+    """
+    if interactive is None:
+        interactive = (
+            sys.stdout.isatty()
+            and os.environ.get("TSPU_NO_PAGER") != "1"
+            and reader is None
+        )
+    if not interactive:
+        print(text)
+        return
+    if reader is None:
+        def reader(_prompt: str = "> ") -> str:  # type: ignore[misc]
+            return input("> ")
+
+    lines = text.splitlines()
+    size = page_size or max(10, shutil.get_terminal_size((100, 30)).lines - 6)
+    total = max(1, (len(lines) + size - 1) // size)
+    page = 0
+    while True:
+        chunk = lines[page * size : (page + 1) * size]
+        print("\n".join(chunk))
+        print(
+            f"\n── страница {page + 1}/{total} ── "
+            "Enter/пробел: далее · b: назад · q: выход"
+        )
+        try:
+            key = str(reader("> ")).strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return
+        if key in ("q", "й", "exit", "выход"):
+            return
+        if key in ("b", "и", "back"):
+            page = max(0, page - 1)
+        elif page + 1 >= total:
+            return
+        else:
+            page += 1
+
+
 def cmd_report(args: argparse.Namespace, config: AppConfig) -> int:
     engine = Engine(config)
     reporter = Reporter(config)
@@ -353,7 +416,10 @@ def cmd_report(args: argparse.Namespace, config: AppConfig) -> int:
         if not args.no_save:
             path = reporter.save(text, name=args.output)
             print(f"Отчёт сохранён: {path}")
-        print(text)
+        if args.view:
+            view_text(text)
+        else:
+            print(text)
 
     if args.send:
         from .telegram_bot import TelegramBot
@@ -454,6 +520,14 @@ def cmd_scenarios(args: argparse.Namespace, config: AppConfig) -> int:
         print(f"Выключен: {args.name}")
         return EXIT_OK
     return EXIT_ERROR
+
+
+def cmd_cleanup(args: argparse.Namespace, config: AppConfig) -> int:
+    from .cleanup import run_cleanup
+
+    return run_cleanup(
+        config, purge=bool(args.purge), assume_yes=bool(args.yes)
+    )
 
 
 def cmd_config_import(args: argparse.Namespace, config: AppConfig) -> int:
@@ -820,6 +894,7 @@ _MENU_ITEMS: tuple[tuple[str, str], ...] = (
     ("6", "Список сценариев"),
     ("7", "Журнал (последние строки)"),
     ("8", "Самопроверка окружения"),
+    ("9", "Самоочистка (удалить данные/отчёты/логи)"),
     ("0", "Выход"),
 )
 
@@ -858,6 +933,21 @@ def _menu_start_web() -> None:
     thread.start()
     print(f"Дашборд запущен: http://{host}:{port}/")
     print("Он остановится, когда вы выйдете из меню.")
+
+
+def _menu_cleanup() -> None:
+    """Пункт меню: самоочистка данных/отчётов/логов."""
+    print("Будут удалены данные, отчёты и журналы TSPU Monitor")
+    print("(конфигурация с secrets.yaml сохранится).")
+    try:
+        answer = input("Продолжить? [y/N]: ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return
+    if answer not in ("y", "yes", "д", "да"):
+        print("Отменено.")
+        return
+    main(["cleanup", "--yes"])
 
 
 def _menu_import_config() -> None:
@@ -907,7 +997,7 @@ def run_menu() -> int:
             elif choice == "3":
                 _menu_start_web()
             elif choice == "4":
-                main(["report"])
+                main(["report", "--view"])
             elif choice == "5":
                 _menu_import_config()
             elif choice == "6":
@@ -916,6 +1006,8 @@ def run_menu() -> int:
                 main(["logs", "--lines", "60"])
             elif choice == "8":
                 main(["self-test"])
+            elif choice == "9":
+                _menu_cleanup()
             else:
                 print("Неизвестный пункт, попробуйте ещё раз.")
                 continue
@@ -964,6 +1056,7 @@ def main(argv: list[str] | None = None) -> int:
         "daemon": cmd_daemon,
         "web": cmd_web,
         "telemetry": cmd_telemetry,
+        "cleanup": cmd_cleanup,
     }
     handler = handlers.get(args.command)
     if handler is None:
