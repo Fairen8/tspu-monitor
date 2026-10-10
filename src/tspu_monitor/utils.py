@@ -91,6 +91,18 @@ def is_private_ip(ip: str) -> bool:
     return a == 169 and b == 254
 
 
+def is_benchmark_ip(ip: str) -> bool:
+    """198.18.0.0/15 — диапазон benchmark/fake-ip (VPN-туннели, sing-box)."""
+    parts = ip.split(".")
+    if len(parts) != 4:
+        return False
+    try:
+        a, b = int(parts[0]), int(parts[1])
+    except ValueError:
+        return False
+    return a == 198 and 18 <= b <= 19
+
+
 def build_dns_query(domain: str, qtype: int = 1) -> bytes:
     """Собрать минимальный DNS-запрос (для UDP-зондов)."""
     transaction_id = random.getrandbits(16)
@@ -102,6 +114,44 @@ def build_dns_query(domain: str, qtype: int = 1) -> bytes:
         question += bytes([len(encoded)]) + encoded
     question += b"\x00" + struct.pack(">HH", qtype, 1)
     return header + question
+
+
+def parse_dns_answers(data: bytes) -> list[str]:
+    """Извлечь A-записи (IPv4) из DNS-ответа. Пусто при ошибке разбора."""
+    if len(data) < 12:
+        return []
+
+    def skip_name(offset: int) -> int:
+        while offset < len(data):
+            length = data[offset]
+            if length == 0:
+                return offset + 1
+            if length & 0xC0 == 0xC0:
+                return offset + 2
+            offset += 1 + length
+        return offset
+
+    try:
+        qdcount, ancount = struct.unpack(">HH", data[4:8])
+        offset = 12
+        for _ in range(qdcount):
+            offset = skip_name(offset) + 4
+        answers: list[str] = []
+        for _ in range(ancount):
+            offset = skip_name(offset)
+            if offset + 10 > len(data):
+                break
+            rtype, _rclass, _ttl, rdlength = struct.unpack(
+                ">HHIH", data[offset : offset + 10]
+            )
+            offset += 10
+            rdata = data[offset : offset + rdlength]
+            offset += rdlength
+            if rtype == 1 and rdlength == 4:
+                answers.append(".".join(str(byte) for byte in rdata))
+        return answers
+    except (struct.error, IndexError):
+        return []
 
 
 def write_json_atomic(path: os.PathLike | str, data: dict[str, Any]) -> None:

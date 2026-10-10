@@ -7,6 +7,32 @@
 
 ## [Unreleased]
 
+## [2.2.5] - 2026-10-10
+
+### Added
+
+* `config import` — импорт конфигов VPN одним действием: WireGuard/
+  AmneziaWG (`.conf`), OpenVPN (`.ovpn`), Xray/v2ray и shadowsocks-libev
+  (JSON), URI `ss://`, `vless://`, `vmess://`, `trojan://`. В `secrets.yaml`
+  попадают только сервер, порт, публичный ключ, протокол, метод и SNI;
+  приватные ключи/пароли/UUID не сохраняются. Пункт меню в exe тоже есть.
+* Web-сценарий по умолчанию выполняет больше проверок: `tcp.connect`,
+  `icmp.ping`, `traceroute`, raw-SYN (TTL/IP-ID, только с root).
+* Новые правила анализа: RST-инъекция по TTL-дифференциалу (RST с чужим
+  TTL), «стена» молчащих хопов traceroute, проверка TLS-сертификата
+  (самоподпись/ошибка верификации), агрегирование мёртвого ICMP.
+* DNS-сравнение резолверов работает без `dig` — прямой UDP-запрос
+  средствами Python (важно для Windows).
+* Детект fake-ip (198.18.0.0/15) при активном VPN/TUN — больше не
+  считается подменой DNS.
+
+### Fixed
+
+* Windows: вывод `ping`/`tracert` в cp866 и русской локали корректно
+  декодируется и разбирается (потери, RTT, хопы).
+* Windows: ICMP-молчание доменов в fake-ip-режиме больше не раздувает
+  оценку (одно агрегированное правило вместо счётчика по каждому хосту).
+
 ## [2.2.4] - 2026-10-10
 
 ### Fixed
@@ -258,7 +284,8 @@
 * Webhook-авторизация через Bearer-токен.
 * Whitelist Telegram-пользователей и логирование неавторизованных попыток.
 
-[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.2.4...HEAD
+[Unreleased]: https://github.com/Fairen8/tspu-monitor/compare/v2.2.5...HEAD
+[2.2.5]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.5
 [2.2.4]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.4
 [2.2.3]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.3
 [2.2.2]: https://github.com/Fairen8/tspu-monitor/releases/tag/v2.2.2

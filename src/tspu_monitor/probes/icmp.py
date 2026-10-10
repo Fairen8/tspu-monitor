@@ -3,18 +3,32 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import re
 from typing import Any
 
 from ..models import ProbeResult, Severity
 from .base import BaseProbe
 
-_PING_LOSS_RE = re.compile(r"(\d+(?:[.,]\d+)?)% packet loss")
+_PING_LOSS_RE = re.compile(
+    r"(\d+(?:[.,]\d+)?)%\s*(?:packet\s+)?(?:loss|потер)",
+    re.IGNORECASE,
+)
 _PING_STATS_RE = re.compile(
     r"(?:rtt|round-trip) min/avg/max/(?:mdev|stddev) = "
     r"([\d.]+)/([\d.]+)/([\d.]+)/([\d.]+)"
 )
-_PING_TIME_RE = re.compile(r"time[=<]([\d.]+)\s*ms")
+_PING_STATS_WIN_RE = re.compile(
+    r"Minimum = (\d+)ms, Maximum = (\d+)ms, Average = (\d+)ms"
+)
+_PING_SENT_LOST_RE = re.compile(
+    r"(?:Sent|отправлено)\s*=\s*(\d+).*?(?:Lost|потеряно)\s*=\s*(\d+)",
+    re.IGNORECASE | re.DOTALL,
+)
+_PING_TIME_RE = re.compile(
+    r"(?:time|время)\s*[=<]\s*([\d.,]+)\s*(?:ms|мсек|мс)",
+    re.IGNORECASE,
+)
 
 
 class PingProbe(BaseProbe):
@@ -37,19 +51,32 @@ class PingProbe(BaseProbe):
 
     async def _ping_one(self, host: str) -> ProbeResult:
         start = self.time_ms()
-        argv = [
-            "ping",
-            "-n",
-            "-c",
-            str(self.count),
-            "-W",
-            str(max(1, int(self.timeout))),
-        ]
-        if self.df:
-            argv += ["-M", "do"]
-        if self.payload_size:
-            argv += ["-s", str(self.payload_size)]
-        argv.append(host)
+        if os.name == "nt":
+            # Windows: ping -n count -w timeout_ms -l payload
+            argv = [
+                "ping",
+                "-n",
+                str(self.count),
+                "-w",
+                str(max(1, int(self.timeout * 1000))),
+            ]
+            if self.payload_size:
+                argv += ["-l", str(self.payload_size)]
+            argv.append(host)
+        else:
+            argv = [
+                "ping",
+                "-n",
+                "-c",
+                str(self.count),
+                "-W",
+                str(max(1, int(self.timeout))),
+            ]
+            if self.df:
+                argv += ["-M", "do"]
+            if self.payload_size:
+                argv += ["-s", str(self.payload_size)]
+            argv.append(host)
 
         rc, stdout, stderr = await self.run_cmd(
             argv, timeout=self.timeout * self.count + 5
@@ -58,13 +85,25 @@ class PingProbe(BaseProbe):
 
         loss_match = _PING_LOSS_RE.search(stdout)
         stats_match = _PING_STATS_RE.search(stdout)
-        rtts = [float(x) for x in _PING_TIME_RE.findall(stdout)]
+        stats_win = _PING_STATS_WIN_RE.search(stdout)
+        rtts = [
+            float(x.replace(",", "."))
+            for x in _PING_TIME_RE.findall(stdout)
+        ]
 
         loss: int | None = None
         if loss_match:
             loss = int(round(float(loss_match.group(1).replace(",", "."))))
+        else:
+            # Fallback: "Sent = 3, Received = 1, Lost = 2" / русский вариант.
+            sent_lost = _PING_SENT_LOST_RE.search(stdout)
+            if sent_lost:
+                sent = int(sent_lost.group(1))
+                lost = int(sent_lost.group(2))
+                if sent > 0:
+                    loss = int(round(lost * 100 / sent))
 
-        success = rc == 0 and loss is not None and loss < 100
+        success = rc in (0, 1) and loss is not None and loss < 100
         if rc == -2:
             severity = Severity.CRITICAL
             error = stderr or "ping не установлен"
@@ -84,20 +123,30 @@ class PingProbe(BaseProbe):
             severity = Severity.INFO
             error = None
 
+        if stats_match:
+            rtt_min = float(stats_match.group(1))
+            rtt_avg = float(stats_match.group(2))
+            rtt_max = float(stats_match.group(3))
+            rtt_mdev: float | None = float(stats_match.group(4))
+        elif stats_win:
+            rtt_min = float(stats_win.group(1))
+            rtt_avg = float(stats_win.group(3))
+            rtt_max = float(stats_win.group(2))
+            rtt_mdev = None
+        else:
+            rtt_min = min(rtts) if rtts else None
+            rtt_avg = sum(rtts) / len(rtts) if rtts else None
+            rtt_max = max(rtts) if rtts else None
+            rtt_mdev = None
+
         data: dict[str, Any] = {
             "host": host,
             "packets_sent": self.count,
             "packet_loss_percent": loss,
-            "rtt_min_ms": float(stats_match.group(1))
-            if stats_match
-            else (min(rtts) if rtts else None),
-            "rtt_avg_ms": float(stats_match.group(2))
-            if stats_match
-            else (sum(rtts) / len(rtts) if rtts else None),
-            "rtt_max_ms": float(stats_match.group(3))
-            if stats_match
-            else (max(rtts) if rtts else None),
-            "rtt_mdev_ms": float(stats_match.group(4)) if stats_match else None,
+            "rtt_min_ms": rtt_min,
+            "rtt_avg_ms": rtt_avg,
+            "rtt_max_ms": rtt_max,
+            "rtt_mdev_ms": rtt_mdev,
             "rtt_samples_ms": rtts,
             "payload_size": self.payload_size,
         }
@@ -130,20 +179,35 @@ class TraceProbe(BaseProbe):
 
     async def _trace_one(self, host: str) -> ProbeResult:
         start = self.time_ms()
-        argv = [
-            "traceroute",
-            "-n",
-            "-m",
-            str(self.max_ttl),
-            "-w",
-            str(max(1, int(self.timeout))),
-            "-q",
-            "1",
-            host,
-        ]
+        if os.name == "nt":
+            argv = [
+                "tracert",
+                "-d",
+                "-h",
+                str(self.max_ttl),
+                "-w",
+                str(max(1, int(self.timeout * 1000))),
+                host,
+            ]
+        else:
+            argv = [
+                "traceroute",
+                "-n",
+                "-m",
+                str(self.max_ttl),
+                "-w",
+                str(max(1, int(self.timeout))),
+                "-q",
+                "1",
+                host,
+            ]
         rc, stdout, stderr = await self.run_cmd(
             argv, timeout=self.timeout * self.max_ttl + 5
         )
+        if rc == -2:
+            # traceroute/tracert нет в системе — это не аномалия.
+            reason = stderr or "traceroute не установлен"
+            return self.skipped_result(f"icmp.trace: {reason}")
         duration = self.time_ms() - start
 
         hops: list[dict[str, Any]] = []
@@ -154,15 +218,19 @@ class TraceProbe(BaseProbe):
                 continue
             ttl = int(parts[0])
             addr: str | None = None
-            rtt: float | None = None
             for token in parts[1:]:
-                if re.fullmatch(r"\d+\.\d+\.\d+\.\d+", token):
-                    addr = token
-                elif addr and re.fullmatch(r"[\d.]+", token):
-                    try:
-                        rtt = float(token)
-                    except ValueError:
-                        pass
+                cleaned = token.strip("[]()")
+                if re.fullmatch(r"\d+\.\d+\.\d+\.\d+", cleaned) or (
+                    ":" in cleaned and re.fullmatch(r"[0-9a-fA-F:]{4,}", cleaned)
+                ):
+                    addr = cleaned
+            rtt: float | None = None
+            ms_values = [
+                float(x)
+                for x in re.findall(r"([\d.]+)\s*(?:ms|мсек|мс)", line)
+            ]
+            if ms_values:
+                rtt = min(ms_values)
             hops.append({"ttl": ttl, "addr": addr, "rtt_ms": rtt})
 
         consecutive_stars = 0
@@ -177,10 +245,7 @@ class TraceProbe(BaseProbe):
         reachable = bool(hops and hops[-1]["addr"] is not None)
         anomaly = max_stars >= 3 and not reachable
 
-        if rc == -2:
-            severity = Severity.WARNING
-            error = "traceroute не установлен"
-        elif rc < 0:
+        if rc < 0:
             severity = Severity.WARNING
             error = stderr or "traceroute завершился с ошибкой"
         elif anomaly:
@@ -226,6 +291,8 @@ class PathMtuProbe(BaseProbe):
         self.sizes: list[int] = [int(s) for s in sizes]
 
     async def run(self) -> list[ProbeResult]:
+        if os.name == "nt":
+            return [self.skipped_result("icmp.mtu: Windows пока не поддерживается")]
         if not self.host:
             return [self.skipped_result("icmp.mtu: не задан host")]
         start = self.time_ms()

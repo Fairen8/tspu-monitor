@@ -29,6 +29,7 @@ import shutil
 import signal
 import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -197,6 +198,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_cfg_set = cfg_sub.add_parser("set", help="Установить значение")
     p_cfg_set.add_argument("key")
     p_cfg_set.add_argument("value")
+    p_cfg_import = cfg_sub.add_parser(
+        "import",
+        help="Импортировать конфиг VPN (wg/amnezia/ovpn/ss/vless/vmess/trojan)",
+    )
+    p_cfg_import.add_argument("source", help="Файл конфигурации или URI")
+    p_cfg_import.add_argument(
+        "--dry-run", action="store_true", help="Показать результат, не сохранять"
+    )
     cfg_sub.add_parser("validate", help="Проверить конфигурацию")
 
     p_logs = sub.add_parser("logs", help="Показать журнал", parents=[common])
@@ -447,6 +456,51 @@ def cmd_scenarios(args: argparse.Namespace, config: AppConfig) -> int:
     return EXIT_ERROR
 
 
+def cmd_config_import(args: argparse.Namespace, config: AppConfig) -> int:
+    from .vpn_import import import_config
+
+    source = str(args.source)
+    if "://" in source:
+        name = ""
+        text = source
+    else:
+        path = Path(source).expanduser()
+        if not path.is_file():
+            print(f"Файл не найден: {path}", file=sys.stderr)
+            return EXIT_ERROR
+        if path.stat().st_size > 1_048_576:
+            print("Файл слишком большой (> 1 МБ)", file=sys.stderr)
+            return EXIT_ERROR
+        name = path.name
+        text = path.read_text(encoding="utf-8", errors="replace")
+
+    try:
+        result = import_config(text, name=name)
+    except ValueError as exc:
+        print(f"Не удалось импортировать: {exc}", file=sys.stderr)
+        return EXIT_ERROR
+
+    targets = config.secrets.setdefault("targets", {})
+    print(f"Формат: {result.protocol}")
+    for key, value in result.targets.items():
+        old = targets.get(key)
+        arrow = f"{old} -> {value}" if old not in (None, "", 0) and old != value else str(value)
+        print(f"  {key}: {arrow}")
+    for note in result.notes:
+        print(f"  · {note}")
+    for warning in result.warnings:
+        print(f"  ! {warning}")
+
+    if args.dry_run:
+        print("Не сохранено (--dry-run).")
+        return EXIT_OK
+    targets.update(result.targets)
+    config.save_secrets()
+    print(f"Сохранено в {config.secrets_path}")
+    print("Проверить: tspu-monitor scenarios list && tspu-monitor check")
+    return EXIT_OK
+
+
 def cmd_config(args: argparse.Namespace, config: AppConfig) -> int:
     if args.cfg_action == "show":
         if args.json:
@@ -474,6 +528,8 @@ def cmd_config(args: argparse.Namespace, config: AppConfig) -> int:
         config.save_settings()
         print(f"{args.key} = {value}")
         return EXIT_OK
+    if args.cfg_action == "import":
+        return cmd_config_import(args, config)
     if args.cfg_action == "validate":
         problems = validate_config(config)
         if not problems:
@@ -760,9 +816,10 @@ _MENU_ITEMS: tuple[tuple[str, str], ...] = (
     ("2", "Статус и последний результат"),
     ("3", "Открыть веб-дашборд"),
     ("4", "Сформировать отчёт"),
-    ("5", "Список сценариев"),
-    ("6", "Журнал (последние строки)"),
-    ("7", "Самопроверка окружения"),
+    ("5", "Импортировать конфиг VPN (wg/ovpn/ss/vless)"),
+    ("6", "Список сценариев"),
+    ("7", "Журнал (последние строки)"),
+    ("8", "Самопроверка окружения"),
     ("0", "Выход"),
 )
 
@@ -803,6 +860,24 @@ def _menu_start_web() -> None:
     print("Он остановится, когда вы выйдете из меню.")
 
 
+def _menu_import_config() -> None:
+    """Пункт меню: импорт конфига VPN из файла или URI."""
+    try:
+        prompt = (
+            "Путь к файлу конфига (или вставьте URI ss://, vless://, "
+            "vmess://, trojan://): "
+        )
+        source = input(prompt).strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return
+    source = source.strip('"').strip("'")
+    if not source:
+        print("Пустой ввод — отменено.")
+        return
+    main(["config", "import", source])
+
+
 def run_menu() -> int:
     """Простое меню для запуска двойным кликом (Windows)."""
     print(f"TSPU Monitor {__version__} — меню")
@@ -834,10 +909,12 @@ def run_menu() -> int:
             elif choice == "4":
                 main(["report"])
             elif choice == "5":
-                main(["scenarios", "list"])
+                _menu_import_config()
             elif choice == "6":
-                main(["logs", "--lines", "60"])
+                main(["scenarios", "list"])
             elif choice == "7":
+                main(["logs", "--lines", "60"])
+            elif choice == "8":
                 main(["self-test"])
             else:
                 print("Неизвестный пункт, попробуйте ещё раз.")

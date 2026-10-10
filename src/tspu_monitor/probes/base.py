@@ -19,6 +19,18 @@ from ..logging_setup import get_logger
 from ..models import ProbeResult, Severity
 
 
+def _decode_output(data: bytes) -> str:
+    """Декодировать вывод команды: UTF-8 → cp866/cp1251 (русская Windows)."""
+    if not data:
+        return ""
+    for encoding in ("utf-8", "cp866", "cp1251"):
+        try:
+            return data.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return data.decode("utf-8", errors="replace")
+
+
 class BaseProbe(abc.ABC):
     """Абстрактная сетевая проба."""
 
@@ -125,8 +137,8 @@ class BaseProbe(abc.ABC):
 
         return (
             proc.returncode if proc.returncode is not None else -1,
-            stdout_b.decode("utf-8", errors="replace"),
-            stderr_b.decode("utf-8", errors="replace"),
+            _decode_output(stdout_b),
+            _decode_output(stderr_b),
         )
 
     async def resolve(self, host: str) -> str | None:
