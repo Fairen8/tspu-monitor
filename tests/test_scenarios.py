@@ -42,6 +42,41 @@ def test_discovery_works_without_pkgutil(config: AppConfig, monkeypatch):
     assert BUILTIN.issubset(set(manager.known_names()))
 
 
+def test_web_scenario_has_default_technical_probes(config: AppConfig):
+    manager = make_manager(config)
+    scenario = manager.get_by_name("web")
+    assert scenario is not None
+    names = [probe.name for probe in scenario.get_probes()]
+    for expected in (
+        "http.get",
+        "tls.handshake",
+        "tcp.connect",
+        "icmp.ping",
+        "icmp.trace",
+        "raw.ttl",
+    ):
+        assert expected in names, f"нет пробы {expected} в web-сценарии"
+
+
+def test_web_scenario_probes_can_be_disabled(config: AppConfig):
+    import copy
+
+    settings = copy.deepcopy(config.settings)
+    settings.setdefault("scenarios", {}).setdefault("options", {})["web"] = {
+        "probe_tcp": False,
+        "probe_ping": False,
+        "probe_trace": False,
+        "probe_raw": False,
+    }
+    manager = ScenarioManager(settings, config.secrets, None)
+    scenario = manager.get_by_name("web")
+    names = [probe.name for probe in scenario.get_probes()]
+    assert "icmp.ping" not in names
+    assert "icmp.trace" not in names
+    assert "raw.ttl" not in names
+    assert "tcp.connect" not in names
+
+
 def test_list_all_metadata(config: AppConfig):
     manager = make_manager(config)
     items = manager.list_all()

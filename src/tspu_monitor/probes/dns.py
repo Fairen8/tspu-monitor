@@ -9,7 +9,7 @@ import socket
 from typing import Any
 
 from ..models import ProbeResult, Severity
-from ..utils import is_private_ip
+from ..utils import build_dns_query, is_benchmark_ip, is_private_ip, parse_dns_answers
 from .base import BaseProbe
 
 _IP_RE = re.compile(r"^[\d.]+$|^[0-9a-fA-F:]+$")
@@ -46,8 +46,9 @@ class DnsResolveProbe(BaseProbe):
             timeout=min(self.timeout, 8),
         )
         if rc == -2:
+            # dig отсутствует (типично для Windows) — спрашиваем сами по UDP.
             self.dig_available = False
-            return [], stderr
+            return await self._udp_query(host, server)
         self.dig_available = True
         if rc < 0:
             return [], stderr or "dig failed"
@@ -57,6 +58,23 @@ class DnsResolveProbe(BaseProbe):
             if line.strip() and _IP_RE.match(line.strip())
         ]
         return ips, stdout.strip()
+
+    async def _udp_query(self, host: str, server: str) -> tuple[list[str], str]:
+        """Прямой DNS-запрос по UDP/53 без dig (fallback для Windows)."""
+        loop = asyncio.get_running_loop()
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setblocking(False)
+        try:
+            sock.sendto(build_dns_query(host), (server, 53))
+            data = await asyncio.wait_for(
+                loop.sock_recv(sock, 4096), timeout=min(self.timeout, 5)
+            )
+        except (TimeoutError, OSError) as exc:
+            return [], f"udp-dns: {type(exc).__name__}: {exc}"
+        finally:
+            sock.close()
+        ips = parse_dns_answers(data)
+        return ips, f"udp-dns @{server} -> {ips}"
 
     async def _system_resolve(self, host: str) -> tuple[list[str], str]:
         loop = asyncio.get_running_loop()
@@ -90,12 +108,18 @@ class DnsResolveProbe(BaseProbe):
 
         system_set = set(system_ips)
         has_private = any(is_private_ip(ip) for ip in system_set)
+        fake_ip = bool(system_set) and all(is_benchmark_ip(ip) for ip in system_set)
         intersection = system_set & public_union
         system_ok = bool(system_set)
 
         spoof_suspected = False
         reason: str | None = None
-        if system_ok and public_union:
+        if fake_ip:
+            reason = (
+                "системный DNS отдаёт fake-ip (198.18.0.0/15) — "
+                "активен VPN/TUN, реальные адреса скрыты"
+            )
+        elif system_ok and public_union:
             if has_private:
                 spoof_suspected = True
                 reason = "системный резолвер вернул приватный IP — возможна подмена"
@@ -118,10 +142,13 @@ class DnsResolveProbe(BaseProbe):
             "public_answers": sorted(public_union),
             "system_ok": system_ok,
             "system_returned_private": has_private,
+            "fake_ip": fake_ip,
             "spoof_suspected": spoof_suspected,
             "intersection_with_public": sorted(intersection),
             "dig_available": self.dig_available,
         }
+        if fake_ip:
+            raw_lines.append("[fake-ip] VPN/TUN перехватывает DNS (198.18.0.0/15)")
         return self.make_result(
             success=system_ok and not spoof_suspected,
             target=host,

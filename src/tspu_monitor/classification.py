@@ -162,10 +162,13 @@ class DiagnosisEngine:
             self._rule_ip_block,
             self._rule_icmp,
             self._rule_mtu,
+            self._rule_trace,
+            self._rule_raw_ttl,
             self._rule_tcp_connect,
             self._rule_dns,
             self._rule_doh,
             self._rule_tls,
+            self._rule_tls_cert,
             self._rule_http,
             self._rule_quic,
             self._rule_udp_vpn,
@@ -200,24 +203,14 @@ class DiagnosisEngine:
     # 2. ICMP: потери и jitter
     def _rule_icmp(self, ix: ResultIndex) -> list[Finding]:
         out: list[Finding] = []
+        dead_hosts: list[str] = []
         for r in ix.by_probe("icmp.ping"):
             loss = r.data.get("packet_loss_percent")
             if loss is None:
                 continue
             host = str(r.data.get("host") or r.target)
             if loss >= 100:
-                out.append(
-                    Finding(
-                        BlockType.ICMP_BLOCK,
-                        10,
-                        f"ICMP до {host}: 100% потерь",
-                        cause="Хост не отвечает на ICMP (блокировка ICMP или недоступность)",
-                        recommendation=(
-                            "Не полагайтесь на ICMP для диагностики: "
-                            "проверьте TCP-порты и доступность сервиса"
-                        ),
-                    )
-                )
+                dead_hosts.append(host)
             elif loss >= 50:
                 out.append(
                     Finding(
@@ -237,6 +230,23 @@ class DiagnosisEngine:
                         disconnect=DisconnectLevel.RARE,
                     )
                 )
+        if dead_hosts:
+            # Одно агрегированное правило: иначе N хостов раздувают баллы.
+            out.append(
+                Finding(
+                    BlockType.ICMP_BLOCK,
+                    10 if len(dead_hosts) == 1 else 8,
+                    "ICMP не отвечает: " + ", ".join(sorted(dead_hosts)),
+                    cause=(
+                        "Фильтрация ICMP провайдером/DPI или активный VPN "
+                        "с fake-ip (домены резолвятся в служебные адреса)"
+                    ),
+                    recommendation=(
+                        "ICMP-молчание само по себе не блокировка — "
+                        "ориентируйтесь на TCP/HTTPS-пробы"
+                    ),
+                )
+            )
         return out
 
     # 3. MTU (Path MTU Discovery через ping с DF)
@@ -272,7 +282,77 @@ class DiagnosisEngine:
                 )
         return out
 
-    # 4. TCP: RST-инъекции, закрытые/фильтруемые порты, обрывы
+    # 4. Traceroute: «стена» из молчащих хопов
+    def _rule_trace(self, ix: ResultIndex) -> list[Finding]:
+        out: list[Finding] = []
+        for r in ix.by_probe("icmp.trace"):
+            if r.skipped:
+                continue
+            data = r.data or {}
+            stars = int(data.get("max_consecutive_star_hops") or 0)
+            reachable = bool(data.get("reachable"))
+            host = str(data.get("host") or r.target)
+            if stars >= 3 and not reachable:
+                out.append(
+                    Finding(
+                        BlockType.ICMP_BLOCK,
+                        12,
+                        f"Маршрут до {host}: {stars}+ молчащих хопов подряд, "
+                        "цель не достигнута",
+                        cause=(
+                            "Фильтрация TTL/ICMP на промежуточном узле "
+                            "(вероятен middlebox/DPI) или цель блокирует ICMP"
+                        ),
+                        recommendation=(
+                            "Если TCP/HTTPS при этом работает — критичного нет; "
+                            "сравните маршрут через VPN и без него"
+                        ),
+                    )
+                )
+            elif stars >= 3 and reachable:
+                out.append(
+                    Finding(
+                        None,
+                        4,
+                        f"Маршрут до {host}: промежуточные узлы скрывают ответы "
+                        f"({stars} хопов подряд)",
+                        cause="ICMP rate-limit или сокрытие узлов провайдером",
+                    )
+                )
+        return out
+
+    # 5. Raw TTL: инъекция RST выдаёт себя неверным TTL
+    def _rule_raw_ttl(self, ix: ResultIndex) -> list[Finding]:
+        out: list[Finding] = []
+        per_host: dict[str, dict[str, int]] = {}
+        for r in ix.by_probe("raw.ttl"):
+            if r.skipped:
+                continue
+            data = r.data or {}
+            host = str(data.get("host") or r.target)
+            kind = data.get("reply_kind")
+            ttl = data.get("reply_ttl")
+            if kind and isinstance(ttl, int):
+                per_host.setdefault(host, {})[kind] = ttl
+        for host, ttls in per_host.items():
+            synack = ttls.get("synack")
+            rst = ttls.get("rst")
+            if synack and rst and rst > synack + 10:
+                out.append(
+                    Finding(
+                        BlockType.RST_INJECTION,
+                        40,
+                        f"RST для {host} пришёл с TTL {rst}, ответ сервера — "
+                        f"TTL {synack}: пакет отправлен другим узлом",
+                        cause="Инъекция RST промежуточным устройством (TTL выдаёт DPI)",
+                        recommendation=(
+                            "Маскируйте протокол (TLS/Reality) или смените узел/порт"
+                        ),
+                    )
+                )
+        return out
+
+    # 6. TCP: RST-инъекции, закрытые/фильтруемые порты, обрывы
     def _rule_tcp_connect(self, ix: ResultIndex) -> list[Finding]:
         out: list[Finding] = []
         for r in ix.by_probe("tcp.connect"):
@@ -347,6 +427,19 @@ class DiagnosisEngine:
         for r in ix.by_probe("dns.resolve"):
             d = r.data
             host = str(d.get("host") or r.target)
+            if d.get("fake_ip"):
+                out.append(
+                    Finding(
+                        None,
+                        2,
+                        f"DNS {host}: системный резолвер отдаёт fake-ip (VPN/TUN)",
+                        cause=(
+                            "Активен VPN/TUN с fake-ip — сравнение с публичными "
+                            "DNS ограничено, это не признак подмены"
+                        ),
+                    )
+                )
+                continue
             if d.get("spoof_suspected"):
                 answers = d.get("system_answers") or []
                 out.append(
@@ -475,7 +568,34 @@ class DiagnosisEngine:
             )
         return out
 
-    # 8. HTTP: заглушки, RST, шейпинг
+    # 8. TLS-сертификаты: подмена, самоподпись, отсутствие доверия
+    def _rule_tls_cert(self, ix: ResultIndex) -> list[Finding]:
+        out: list[Finding] = []
+        for r in ix.by_probe("tls.handshake"):
+            if r.skipped or not r.success:
+                continue
+            verify = str(r.data.get("verify") or "")
+            if not verify.lower().startswith(("error", "fail")):
+                continue
+            host = str(r.data.get("host") or r.target)
+            out.append(
+                Finding(
+                    BlockType.TLS_INTERFERENCE,
+                    10,
+                    f"TLS {host}: сертификат не проходит проверку ({verify})",
+                    cause=(
+                        "Самоподписанный или подменённый сертификат "
+                        "(либо отсутствует CA-хранилище в системе)"
+                    ),
+                    recommendation=(
+                        "Проверьте цепочку сертификатов сервера; при MITM — "
+                        "используйте пиннинг/Reality"
+                    ),
+                )
+            )
+        return out
+
+    # 9. HTTP: заглушки, RST, шейпинг
     def _rule_http(self, ix: ResultIndex) -> list[Finding]:
         out: list[Finding] = []
         for r in ix.by_probe("http.get"):

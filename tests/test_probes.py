@@ -212,3 +212,114 @@ async def test_path_mtu_probe_requires_host():
     probe = PathMtuProbe({})
     results = await probe.run()
     assert results[0].skipped is True
+
+
+async def test_trace_probe_missing_binary_is_skipped(monkeypatch):
+    from tspu_monitor.probes.icmp import TraceProbe
+
+    probe = TraceProbe({"hosts": ["1.2.3.4"]})
+
+    async def fake_run_cmd(argv, timeout=None, stdin=None, env=None):
+        return -2, "", "binary not found: traceroute"
+
+    monkeypatch.setattr(probe, "run_cmd", fake_run_cmd)
+    results = await probe.run()
+    assert results[0].skipped is True
+
+
+async def test_ping_parses_windows_output(monkeypatch):
+    import types
+
+    import tspu_monitor.probes.icmp as icmp_module
+
+    probe = PingProbe({"hosts": ["1.2.3.4"], "count": 2, "timeout_seconds": 2})
+    output = (
+        "Pinging 1.2.3.4 with 32 bytes of data:\r\n"
+        "Reply from 1.2.3.4: bytes=32 time<1ms TTL=57\r\n"
+        "Reply from 1.2.3.4: bytes=32 time=2ms TTL=57\r\n"
+        "\r\nPing statistics for 1.2.3.4:\r\n"
+        "    Packets: Sent = 2, Received = 2, Lost = 0 (0% loss),\r\n"
+        "Approximate round trip times in milli-seconds:\r\n"
+        "    Minimum = 0ms, Maximum = 2ms, Average = 1ms\r\n"
+    )
+
+    async def fake_run_cmd(argv, timeout=None, stdin=None, env=None):
+        assert argv[0] == "ping" and "-n" in argv and "-w" in argv
+        return 0, output, ""
+
+    monkeypatch.setattr(icmp_module, "os", types.SimpleNamespace(name="nt"))
+    monkeypatch.setattr(probe, "run_cmd", fake_run_cmd)
+    result = await probe._ping_one("1.2.3.4")
+    assert result.success is True
+    assert result.data["packet_loss_percent"] == 0
+    assert result.data["rtt_min_ms"] == pytest.approx(0.0)
+    assert result.data["rtt_avg_ms"] == pytest.approx(1.0)
+
+
+async def test_ping_windows_100_percent_loss(monkeypatch):
+    import types
+
+    import tspu_monitor.probes.icmp as icmp_module
+
+    probe = PingProbe({"hosts": ["1.2.3.4"], "count": 2, "timeout_seconds": 2})
+    output = (
+        "Pinging 1.2.3.4 with 32 bytes of data:\r\n"
+        "Request timed out.\r\n"
+        "Request timed out.\r\n"
+        "\r\nPing statistics for 1.2.3.4:\r\n"
+        "    Packets: Sent = 2, Received = 0, Lost = 2 (100% loss),\r\n"
+    )
+
+    async def fake_run_cmd(argv, timeout=None, stdin=None, env=None):
+        return 1, output, ""
+
+    monkeypatch.setattr(icmp_module, "os", types.SimpleNamespace(name="nt"))
+    monkeypatch.setattr(probe, "run_cmd", fake_run_cmd)
+    result = await probe._ping_one("1.2.3.4")
+    assert result.success is False
+    assert result.data["packet_loss_percent"] == 100
+
+
+async def test_ping_parses_russian_windows_output(monkeypatch):
+    import types
+
+    import tspu_monitor.probes.icmp as icmp_module
+
+    probe = PingProbe({"hosts": ["1.2.3.4"], "count": 2, "timeout_seconds": 2})
+    output = (
+        "Обмен пакетами с 1.2.3.4 по с 32 байтами данных:\r\n"
+        "Ответ от 1.2.3.4: число байт=32 время=42мсек TTL=57\r\n"
+        "Ответ от 1.2.3.4: число байт=32 время=43мсек TTL=57\r\n"
+        "\r\nСтатистика Ping для 1.2.3.4:\r\n"
+        "    Пакетов: отправлено = 2, получено = 2, потеряно = 0\r\n"
+        "    (0% потерь)\r\n"
+        "Приблизительное время приема-передачи в мс:\r\n"
+        "    Минимальное = 42мсек, Максимальное = 43 мсек, Среднее = 42 мсек\r\n"
+    )
+
+    async def fake_run_cmd(argv, timeout=None, stdin=None, env=None):
+        return 0, output, ""
+
+    monkeypatch.setattr(icmp_module, "os", types.SimpleNamespace(name="nt"))
+    monkeypatch.setattr(probe, "run_cmd", fake_run_cmd)
+    result = await probe._ping_one("1.2.3.4")
+    assert result.success is True
+    assert result.data["packet_loss_percent"] == 0
+    assert result.data["rtt_avg_ms"] == pytest.approx(42.5)
+
+
+async def test_dns_udp_fallback_when_dig_missing(monkeypatch):
+    from tspu_monitor.probes.dns import DnsResolveProbe
+
+    probe = DnsResolveProbe({"hosts": ["example.com"]})
+
+    async def fake_run_cmd(argv, timeout=None, stdin=None, env=None):
+        return -2, "", "binary not found: dig"
+
+    async def fake_udp(host, server):
+        return ["93.184.216.34"], "udp-dns"
+
+    monkeypatch.setattr(probe, "run_cmd", fake_run_cmd)
+    monkeypatch.setattr(probe, "_udp_query", fake_udp)
+    ips, _raw = await probe._dig("example.com", "1.1.1.1")
+    assert ips == ["93.184.216.34"]
